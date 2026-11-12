@@ -147,3 +147,27 @@ def test_every_option_trains_one_step():
             optimizer.update(model, grads)
         assert loss_fn(model).item() < before, option
         assert model(tokens).shape == (2, 40)
+
+
+def test_loss_gradient_reaches_keys_queries_and_entries():
+    import mlx.nn as nn
+    from mlx.utils import tree_flatten
+
+    mx.random.seed(0)
+    model = RecurrentModel(small())
+    model.eval()  # keep the query statistics fixed between the two forwards
+    tokens, targets = mx.array([[3, 41, 45], [7, 42, 44]]), mx.array([5, 9])
+
+    def loss_fn(model):
+        return nn.losses.cross_entropy(model(tokens), targets, reduction="mean")
+
+    _, grads = nn.value_and_grad(model, loss_fn)(model)
+    grads = dict(tree_flatten(grads))
+    for name in ("ff.subkeys", "ff.query.weight", "ff.fire", "ff.write"):
+        assert float(mx.abs(grads[name]).max()) > 0, name
+    # Only retrieved entries receive a gradient.
+    touched = np.abs(np.array(grads["ff.write"])).sum(axis=1) > 0
+    _, retrieved = model(tokens, return_retrieval=True)
+    used = np.unique(np.concatenate([np.array(r).ravel() for r in retrieved]))
+    assert set(np.flatnonzero(touched)) <= set(used.tolist())
+    assert 0 < touched.sum() < len(touched)
