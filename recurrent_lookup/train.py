@@ -247,9 +247,15 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         )
         return timing
 
+    # Keep only the evaluations at or before the step we are starting from.
     metrics_path = out / "metrics.jsonl"
-    if not resume and metrics_path.exists():
-        metrics_path.unlink()
+    if metrics_path.exists():
+        kept = [
+            line
+            for line in metrics_path.read_text().splitlines()
+            if json.loads(line)["step"] <= step0
+        ]
+        metrics_path.write_text("".join(line + "\n" for line in kept))
     train_sec, window_loss, window_n = 0.0, 0.0, 0
     started = last_ckpt = time.perf_counter()
     step = step0
