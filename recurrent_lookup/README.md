@@ -106,15 +106,17 @@ to the state. Defaults are 4 query heads and top-8 entries per head.
 
 ## The runs
 
-| Run | What it is | What it tests |
-|---|---|---|
-| A | Recurrent block, ordinary feed-forward, no lookup | Baseline at about equal compute |
-| B | A with the feed-forward widened to C's parameter count | Whether "just make it bigger" does as well |
-| C | Lookup on every pass, 16,384 entries | The idea |
-| D | C with the lookup on the first pass only | Whether per-pass retrieval matters |
-| E_small, E_large | C with 1,024 and 262,144 entries | Whether capacity grows with table size |
+| Run | What it is | Parameters | What it tests |
+|---|---|---|---|
+| A | Recurrent block, ordinary feed-forward, no lookup | 0.84M | Baseline at about equal compute |
+| B | A with the feed-forward widened to C's parameter count | 4.97M | Whether "just make it bigger" does as well |
+| C | Lookup on every pass, 16,384 entries | 4.97M | The idea |
+| D | C with the lookup on the first pass only | 4.97M | Whether per-pass retrieval matters |
+| E_small | C with 1,024 entries | 1.01M | Whether capacity grows with table size |
+| E_large | C with 262,144 entries | 68.0M | Same |
 
-A and C run with three seeds, the rest once: ten runs. All runs share the same
+Parameter counts are for the `full` preset. A and C run with three seeds, the
+rest once: ten runs. All runs share the same
 graph and splits; the seed changes initialisation and batch order.
 
 ## What is measured
@@ -150,8 +152,10 @@ near chance on held-out ones means it memorised chains (a case table).
 - Tested only on MLX's Linux CPU build, at reduced size, because that build is
   too slow for more. The tests pass, and training, resume, the sweep and the
   report all run end to end.
-- Not yet run on an Apple GPU or at full size. Speed, memory and whether the
-  defaults learn the 100,000-fact graph in one night are unknown.
+- At full size, all six variants were built and took one training step on a
+  batch of 16. Nothing more was run at full size, and nothing on an Apple GPU.
+  Speed, memory and whether the defaults learn the 100,000-fact graph in one
+  night are unknown.
 - The longest test was run C on 100 entities (2,000 facts) with width 64 and a
   256-entry table, for 4,000 steps. It reached 97% one-hop recall, 39% on
   trained chains (still rising), 15% on unseen chains and 2% on held-out 2nd
