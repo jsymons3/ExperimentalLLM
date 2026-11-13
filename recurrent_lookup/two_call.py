@@ -2,6 +2,9 @@
 
 The true intermediate entity is used only for scoring and for the separate
 oracle-second-hop probe. The two-call path receives the model's prediction.
+
+Depths are passes for the original model. For a scratchpad model they are
+outer steps, and the output is labelled that way.
 """
 
 import argparse
@@ -11,12 +14,9 @@ from pathlib import Path
 
 import mlx.core as mx
 import numpy as np
-from mlx.utils import tree_unflatten
 
-from .configs import RunConfig, graph_config, model_config
-from .data import MultiHopData
-from .evaluate import eval_mode
-from .model import RecurrentModel
+from .evaluate import eval_mode, forward, uses_slots
+from .loading import load_run
 
 
 def predict(model, tokens, passes, batch_size):
@@ -24,7 +24,7 @@ def predict(model, tokens, passes, batch_size):
         [
             np.array(
                 mx.argmax(
-                    model(mx.array(tokens[i : i + batch_size]), n_passes=passes),
+                    forward(model, mx.array(tokens[i : i + batch_size]), passes),
                     axis=-1,
                 )
             )
@@ -112,31 +112,37 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("run", type=Path)
     p.add_argument("--out", type=Path)
-    p.add_argument("--one-hop-passes", type=int, nargs="+", default=[2, 4])
-    p.add_argument("--direct-passes", type=int, nargs="+", default=[4, 8])
+    p.add_argument(
+        "--one-hop-passes",
+        type=int,
+        nargs="+",
+        help="depth of each one-hop call: passes (default 2 4), "
+        "or outer steps for a scratchpad model (default 1 2)",
+    )
+    p.add_argument(
+        "--direct-passes",
+        type=int,
+        nargs="+",
+        help="depth of the native chain: passes (default 4 8), "
+        "or outer steps for a scratchpad model (default 2 4)",
+    )
     p.add_argument("--batch-size", type=int, default=512)
     p.add_argument("--cpu", action="store_true")
     a = p.parse_args()
-    if min(a.one_hop_passes + a.direct_passes + [a.batch_size]) < 1:
-        p.error("pass counts and batch size must be positive")
     if a.cpu:
         mx.set_default_device(mx.cpu)
-    cfg = RunConfig(**json.loads((a.run / "config.json").read_text()))
     checkpoint = a.run / "checkpoint.safetensors"
     with checkpoint.open("rb") as f:
         checksum = hashlib.file_digest(f, "sha256").hexdigest()
-    arrays, meta = mx.load(str(checkpoint), return_metadata=True)
-    model = RecurrentModel(model_config(cfg))
-    model.update(
-        tree_unflatten(
-            [(k[6:], v) for k, v in arrays.items() if k.startswith("model.")]
-        )
-    )
-    mx.eval(model.parameters())
-    del arrays
+    cfg, data, model, step = load_run(a.run)
+    slots = uses_slots(model)
+    a.one_hop_passes = a.one_hop_passes or ([1, 2] if slots else [2, 4])
+    a.direct_passes = a.direct_passes or ([2, 4] if slots else [4, 8])
+    if min(a.one_hop_passes + a.direct_passes + [a.batch_size]) < 1:
+        p.error("pass counts and batch size must be positive")
     results = diagnose(
         model,
-        MultiHopData(graph_config(cfg)),
+        data,
         a.one_hop_passes,
         a.direct_passes,
         a.batch_size,
@@ -144,9 +150,10 @@ def main():
     report = {
         "checkpoint": str(checkpoint.resolve()),
         "checkpoint_sha256": checksum,
-        "step": int(meta["step"]),
+        "step": step,
         "device": str(mx.default_device()),
         "graph": cfg.graph,
+        "depth_unit": "steps" if slots else "passes",
         "trained_passes": model.cfg.n_passes,
         "one_hop_passes_per_call": a.one_hop_passes,
         "direct_passes": a.direct_passes,

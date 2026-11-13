@@ -38,6 +38,7 @@ def fake_final(variant, seed, held_second, lookup):
     matrix = [[0.1, 0.1], [0.8, 0.2]]
     return {
         "variant": variant, "seed": seed, "steps": 1000, "sec_per_step": 0.03,
+        "trained_passes": 4,
         "params": {"total": 123456},
         "accuracy": acc,
         "accuracy_by_passes": {"1": acc, "4": acc},

@@ -4,11 +4,15 @@
         --out runs/smoke/C
 
 Writes to the output directory:
-    config.json            the resolved configuration
+    config.json            the resolved configuration, including the learning
+                           rate schedule
     metrics.jsonl          one line per periodic evaluation
-    final.json             end-of-run evaluation (accuracy at 1/2/4/8 passes,
-                           table usage, retrieval overlap, timing, parameters)
-    checkpoint.safetensors model and optimizer state, for --resume
+    final.json             end-of-run evaluation (accuracy by depth, table
+                           usage, retrieval overlap, two-call ceiling, what
+                           the answer position holds at each depth, slot
+                           contents, timing, parameters)
+    checkpoint.safetensors model and optimizer state (with the schedule
+                           position), for --resume
 """
 
 import argparse
@@ -31,6 +35,9 @@ from .data import MultiHopData
 from .evaluate import accuracy_by_split, eval_mode, full_evaluation, table_usage
 from .model import RecurrentModel, count_parameters
 
+# The parameters that make up the lookup table: its keys and its entries.
+TABLE_PARAMETERS = ("ff.subkeys", "ff.fire", "ff.write")
+
 GRAPH_FLAGS = (
     "n_entities",
     "n_relations",
@@ -47,6 +54,9 @@ MODEL_FLAGS = (
     "top_k",
     "d_key",
     "query_norm",
+    "num_slots",
+    "slot_content",
+    "outer_steps_train",
 )
 TRAIN_FLAGS = (
     "steps",
@@ -58,6 +68,8 @@ TRAIN_FLAGS = (
     "grad_clip",
     "eval_every",
     "log_every",
+    "prefix_loss_weight",
+    "table_weight_decay",
 )
 
 
@@ -88,13 +100,37 @@ def parse_args(argv=None):
     m = p.add_argument_group("model overrides")
     m.add_argument("--d-model", type=int)
     m.add_argument("--n-heads", type=int)
-    m.add_argument("--n-passes", type=int)
+    m.add_argument(
+        "--n-passes",
+        "--inner-passes",
+        dest="n_passes",
+        type=int,
+        help="block applications (per outer step, with a scratchpad)",
+    )
     m.add_argument("--n-subkeys", type=int, help="run C table has n_subkeys**2 entries")
     m.add_argument("--lookup-heads", type=int)
     m.add_argument("--top-k", type=int)
     m.add_argument("--d-key", type=int)
     m.add_argument("--query-norm", choices=["ema", "layer", "none"])
     m.add_argument("--no-tie-embeddings", action="store_true")
+
+    s = p.add_argument_group("scratchpad (off unless num_slots > 0)")
+    s.add_argument("--num-slots", type=int, help="slot positions; 0 is the original model")
+    s.add_argument("--slot-content", choices=["soft", "hard", "raw"])
+    s.add_argument(
+        "--outer-steps-train",
+        type=int,
+        nargs="+",
+        metavar="T",
+        help="outer step counts to sample from per batch (default 2 3 4)",
+    )
+    s.add_argument("--carry-hidden", action="store_true", help="keep hidden state between steps")
+    s.add_argument("--no-step-embedding", action="store_true")
+    s.add_argument(
+        "--prefix-loss-weight",
+        type=float,
+        help="train the step-1 readout of two-hop training chains toward the bridge",
+    )
 
     t = p.add_argument_group("training overrides")
     t.add_argument("--steps", type=int)
@@ -103,6 +139,11 @@ def parse_args(argv=None):
     t.add_argument("--lr", type=float)
     t.add_argument("--warmup", type=int)
     t.add_argument("--weight-decay", type=float)
+    t.add_argument(
+        "--table-weight-decay",
+        type=float,
+        help="separate weight decay for the table (default: same as --weight-decay)",
+    )
     t.add_argument("--grad-clip", type=float)
     t.add_argument("--eval-every", type=int)
     t.add_argument("--log-every", type=int)
@@ -116,6 +157,10 @@ def config_from_args(args):
     model = given(MODEL_FLAGS)
     if args.no_tie_embeddings:
         model["tie_embeddings"] = False
+    if args.carry_hidden:
+        model["carry_hidden"] = True
+    if args.no_step_embedding:
+        model["step_embedding"] = False
     return build_config(
         preset=args.preset,
         variant=args.variant,
@@ -124,6 +169,19 @@ def config_from_args(args):
         model=model,
         **given(TRAIN_FLAGS),
     )
+
+
+def build_optimizer(cfg):
+    """AdamW with the run's schedule, and a separate table decay if asked for."""
+
+    def schedule(step):
+        return cfg.lr * mx.minimum(1.0, (step + 1) / cfg.warmup)
+
+    core = optim.AdamW(learning_rate=schedule, weight_decay=cfg.weight_decay)
+    if cfg.table_weight_decay is None:
+        return core
+    table = optim.AdamW(learning_rate=schedule, weight_decay=cfg.table_weight_decay)
+    return optim.MultiOptimizer([table, core], [lambda name, _: name in TABLE_PARAMETERS])
 
 
 def save_checkpoint(path, model, optimizer, step):
@@ -166,10 +224,8 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     data = MultiHopData(graph_config(cfg))
     mx.random.seed(cfg.seed)
     model = RecurrentModel(model_config(cfg))
-    optimizer = optim.AdamW(
-        learning_rate=lambda step: cfg.lr * mx.minimum(1.0, (step + 1) / cfg.warmup),
-        weight_decay=cfg.weight_decay,
-    )
+    optimizer = build_optimizer(cfg)
+    slots = bool(model.cfg.num_slots)
 
     ckpt_path = out / "checkpoint.safetensors"
     step0 = 0
@@ -179,6 +235,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     mx.eval(model.parameters(), optimizer.state)
 
     params = count_parameters(model)
+    eval_depths = cfg.eval_steps if slots else cfg.eval_passes
     eval_every = cfg.eval_every or max(100, cfg.steps // 40)
     (out / "config.json").write_text(json.dumps(asdict(cfg), indent=2))
     print(f"run {cfg.variant} seed {cfg.seed} ({VARIANTS[cfg.variant]})")
@@ -189,31 +246,59 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     n_two = int(round(cfg.batch_size * cfg.two_hop_frac))
     n_one = cfg.batch_size - n_two
 
-    def loss_fn(model, tok1, y1, tok2, y2):
-        total = mx.array(0.0)
-        if n_one:
-            total = total + nn.losses.cross_entropy(model(tok1), y1, reduction="sum")
-        if n_two:
-            total = total + nn.losses.cross_entropy(model(tok2), y2, reduction="sum")
-        return total / cfg.batch_size
-
-    loss_and_grad = nn.value_and_grad(model, loss_fn)
     state = [model.state, optimizer.state]
 
-    def train_step(tok1, y1, tok2, y2):
-        loss, grads = loss_and_grad(model, tok1, y1, tok2, y2)
-        grads, _ = optim.clip_grad_norm(grads, cfg.grad_clip)
-        optimizer.update(model, grads)
-        return loss
+    def make_train_step(steps):
+        """A training step at a fixed number of outer steps (None: no slots).
 
-    if compile_step:
-        train_step = partial(mx.compile, inputs=state, outputs=state)(train_step)
+        The loss is cross-entropy on the readout at the final step. With a
+        prefix loss, the step-1 readout of two-hop chains is also trained
+        toward the bridge entity.
+        """
+        kwargs = {"steps": steps} if slots else {}
+
+        def loss_fn(model, tok1, y1, tok2, y2, bridge):
+            total = mx.array(0.0)
+            if n_one:
+                logits = model(tok1, **kwargs)
+                total = total + nn.losses.cross_entropy(logits, y1, reduction="sum")
+            if n_two and cfg.prefix_loss_weight:
+                logits, trace = model(tok2, return_trace=True, **kwargs)
+                first = nn.losses.cross_entropy(
+                    trace["step_logits"][0], bridge, reduction="sum"
+                )
+                total = total + cfg.prefix_loss_weight * first
+                total = total + nn.losses.cross_entropy(logits, y2, reduction="sum")
+            elif n_two:
+                logits = model(tok2, **kwargs)
+                total = total + nn.losses.cross_entropy(logits, y2, reduction="sum")
+            return total / cfg.batch_size
+
+        loss_and_grad = nn.value_and_grad(model, loss_fn)
+
+        def train_step(tok1, y1, tok2, y2, bridge):
+            loss, grads = loss_and_grad(model, tok1, y1, tok2, y2, bridge)
+            grads, _ = optim.clip_grad_norm(grads, cfg.grad_clip)
+            optimizer.update(model, grads)
+            return loss
+
+        if compile_step:
+            return partial(mx.compile, inputs=state, outputs=state)(train_step)
+        return train_step
+
+    step_options = list(model.cfg.outer_steps_train) if slots else [None]
+    train_steps = {steps: make_train_step(steps) for steps in step_options}
 
     rng = np.random.default_rng([cfg.seed, step0])
 
     def one_step():
         (tok1, y1), (tok2, y2) = data.sample_batch(rng, n_one, n_two)
-        loss = train_step(mx.array(tok1), mx.array(y1), mx.array(tok2), mx.array(y2))
+        bridge = data.tail[tok2[:, 0], tok2[:, 1] - data.n_entities]
+        # The number of outer steps is drawn once per batch.
+        steps = int(rng.choice(step_options)) if slots else None
+        loss = train_steps[steps](
+            mx.array(tok1), mx.array(y1), mx.array(tok2), mx.array(y2), mx.array(bridge)
+        )
         mx.eval(loss, state)
         return loss.item()
 
@@ -232,7 +317,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         periodic_eval()
         eval_sec = time.perf_counter() - t0
         t0 = time.perf_counter()
-        full_evaluation(model, data, cfg.eval_passes)
+        full_evaluation(model, data, eval_depths)
         final_sec = time.perf_counter() - t0
         timing = {
             "sec_per_step": sec_per_step,
@@ -306,6 +391,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         "preset": cfg.preset,
         "steps": step,
         "trained_passes": model.cfg.n_passes,
+        "trained_steps": list(model.cfg.outer_steps_train) if slots else None,
         "params": params,
         "sec_per_step": train_sec / max(1, step - step0),
         "wall_minutes": (time.perf_counter() - started) / 60,
@@ -314,11 +400,12 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         "device": str(mx.default_device()),
         "platform": platform.platform(),
     }
-    final.update(full_evaluation(model, data, cfg.eval_passes))
+    final.update(full_evaluation(model, data, eval_depths))
     (out / "final.json").write_text(json.dumps(final, indent=2))
     print("final  " + format_eval(final["accuracy"], final["table"]))
-    for passes, acc in final["accuracy_by_passes"].items():
-        print(f"  passes={passes}: {format_eval(acc, None)}")
+    unit = final["depth_unit"]
+    for depth, acc in final[f"accuracy_by_{unit}"].items():
+        print(f"  {unit}={depth}: {format_eval(acc, None)}")
     return final
 
 

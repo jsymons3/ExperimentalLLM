@@ -79,7 +79,8 @@ python -m recurrent_lookup.two_call runs/continuation-2026-11-12/E_large_s0
 ```
 
 This read-only checkpoint evaluation compares native chains at 4/8 passes
-with two explicit one-hop calls at 2/4 passes each. The second call receives
+with two explicit one-hop calls at 2/4 passes each (for a scratchpad run:
+2/4 outer steps against calls of 1/2 steps). The second call receives
 the predicted intermediate entity. It also measures native accuracy restricted
 to chains whose two component facts are independently recalled correctly.
 Two-call accuracy on that subset should be 100% by construction; the useful
@@ -161,7 +162,8 @@ near chance on held-out ones means it memorised chains (a case table).
   evaluation (see `QueryNorm` in `model.py`). Ordinary batch norm would
   normalise the same question differently on different passes.
   `--query-norm layer` and `--query-norm none` are available.
-- One weight decay (0.1) applies to everything, including the table.
+- One weight decay (0.1) applies to everything, including the table, unless
+  `--table-weight-decay` is given.
 
 ## Status
 
@@ -189,18 +191,164 @@ near chance on held-out ones means it memorised chains (a case table).
   training set. One night may be too short. A flat held-out column on a first
   night is not yet a negative result.
 
+## Scratchpad variant
+
+The first sweep showed the table stores facts but the model cannot hand the
+result of one lookup to the next. This variant gives the model a place to
+write an intermediate result in the same form as a typed token, and tests
+whether it can then be read like one, including for held-out facts. It is a
+hypothesis under test, not a result.
+
+### How it works
+
+- The sequence is `[question tokens, K slots, work position]`. Attention stays
+  causal, so the work position, at the end, reads everything.
+- The model runs in outer steps. A step applies the block `n_passes` times
+  (2 by default), reads the work position out through the tied embedding, and
+  writes the result into the slots.
+- What is written is `softmax(logits) @ E`: a blend of entity embeddings, so a
+  slot holding entity `b` looks like `b` typed into the question. A write head
+  gives one weight per slot plus one for "write nothing".
+- The next step starts fresh from the question and the slots. Nothing else is
+  carried over.
+- The loss is cross-entropy on the last step's readout. The number of steps is
+  drawn per batch from 2, 3 or 4. No hop labels are used.
+
+### Flags
+
+All default to the original model. The scratchpad variants, and any run with
+`--num-slots` above 0, use the values in the last column.
+
+| Flag | Values | With slots |
+|---|---|---|
+| `--num-slots` | 0 (original model), 1, 3 | 1 |
+| `--slot-content` | `soft` (token form), `hard` (top entity, straight-through), `raw` (linear layer on the work state) | `soft` |
+| `--inner-passes` (same as `--n-passes`) | block applications per step | 2 |
+| `--outer-steps-train` | step counts to sample from per batch | 2 3 4 |
+| `--carry-hidden` | keep hidden state between steps | off |
+| `--no-step-embedding` | drop the per-step embedding on the work position | embedding on |
+| `--prefix-loss-weight` | extra loss: step-1 readout of training chains toward the bridge | 0 |
+| `--table-weight-decay` | separate decay for sub-keys and entries | same as `--weight-decay` |
+
+### Step 1: checks on the existing checkpoints (no training)
+
+```bash
+python -m recurrent_lookup.diagnose runs/overnight/B_s0 runs/overnight/C_s0 runs/continuation-2026-11-12/E_large_s0
+```
+
+For each run this prints three things and saves them as `diagnostics.md` and
+`diagnostics.json` in the run directory:
+
+- Whether the checkpoint reproduces the accuracies in `final.json`. For
+  `C_s0` this is the check that the new code has not changed the old model.
+- The two-call table, for all five chain groups.
+- What the answer position holds after each pass: how often its top entity is
+  the bridge, how often the answer, and how often the first-hop position holds
+  the bridge.
+
+### Step 2: the scratchpad runs
+
+See the time estimate first. This times 200 steps of each variant and stops:
+
+```bash
+python -m recurrent_lookup.sweep --runs slots --preset full --steps 128200 --baseline runs/overnight/C_s0 --out runs/slots --estimate-only
+```
+
+Then run them. The same command resumes after an interruption:
+
+```bash
+caffeinate -is python -m recurrent_lookup.sweep --runs slots --preset full --steps 128200 --baseline runs/overnight/C_s0 --out runs/slots
+```
+
+| Run | Slots | Slot content | Extra loss | Seeds |
+|---|---|---|---|---|
+| `slot_soft` | 1 | token form | none | 3 |
+| `slot_raw` | 1 | raw vector | none | 1 |
+| `slot_soft_prefix` | 1 | token form | step-1 readout toward the bridge, training chains only | 1 |
+| `slot_soft_k3` | 3 | token form | none | 1 |
+
+They run in this order: `slot_soft` seed 0, `slot_raw`, `slot_soft_prefix`,
+`slot_soft` seeds 1 and 2, `slot_soft_k3`. `--baseline` makes the sweep refuse
+to start if the graph, optimizer, schedule, batch size or step count differ
+from run C's, and puts the first sweep's runs in the same report. To rebuild
+the report by hand:
+
+```bash
+python -m recurrent_lookup.report runs/slots runs/overnight
+```
+
+### What the report adds for these runs
+
+- Accuracy at 1, 2, 3, 4, 6 and 8 outer steps.
+- What is in the slot after step 1: how often it decodes to the bridge entity.
+- Retrieval overlap between step 2 of a chain and the direct question about
+  the bridge.
+- The two-call ceiling on the same checkpoint.
+
+### How to read the result
+
+- `slot_soft` far above C on held-out 2nd hop, near its own two-call ceiling,
+  with the bridge usually in the slot: the mechanism works.
+- `slot_soft` fails and `slot_soft_prefix` works: the mechanism is sound and
+  the difficulty is getting it to emerge. That points to a curriculum.
+- `slot_soft` and `slot_raw` work equally: token form is not what matters. The
+  fresh state per step is.
+- Bridge in the slot but held-out accuracy low: the model writes the bridge
+  and cannot read it from a slot the way it reads it from the question.
+- Everything fails: report it with the diagnostics. Do not tune blindly.
+
+### Where this differs from the design brief
+
+- **Work position.** The brief describes the work position as the existing
+  answer position. The original model has none: it reads the answer at the
+  last question token. The scratchpad model follows the brief's forward pass
+  and adds a learned work token after the slots. With `num_slots = 0` the
+  original layout is used, so old checkpoints load and reproduce.
+- **Weight decay.** The brief asks both to change only the model variant
+  relative to run C and to give the table no weight decay. Run C decayed the
+  table at 0.1. These runs keep run C's setting so the comparison has one
+  difference. `--table-weight-decay 0` is available.
+- **Evaluation depth.** The headline numbers for scratchpad runs use 2 steps
+  of 2 passes, the same 4 block applications as run C.
+- **Cost.** A scratchpad run processes two more positions per question and
+  about 6 block applications instead of 4, so expect well over the 1.5 times
+  run C's step time that the block count alone suggests. At tiny size on CPU
+  it measured about 2 times.
+- **Bridge loss weight.** The brief gives no value for `slot_soft_prefix`. It
+  uses 1.0.
+- **Readout.** The model's readout covers entities only, so the slot content
+  is a blend of entity embeddings.
+- **Carried state.** With `--carry-hidden`, question and work positions keep
+  their state and only the slot positions are refreshed. No planned run uses
+  it.
+- **Not built.** The Simple English Wikipedia version. The brief recommends
+  waiting for these results, and it overlaps with `core_memory/`, which
+  already has a natural-text pipeline with memory-off batches.
+
+### Status of the scratchpad code
+
+- Tested on MLX's Linux CPU build at tiny size only. Old checkpoints reproduce
+  their stored accuracies exactly, retraining the original variants gives
+  identical numbers, and the six-run sweep, the diagnostics and the report run
+  end to end.
+- Nothing has been run at full size or on an Apple GPU, and no run here is
+  long enough to say whether the mechanism works.
+
 ## Files
 
 | File | Contents |
 |---|---|
 | `data.py` | Graph generation and splits |
-| `model.py` | Recurrent block, product-key lookup, dense baseline |
-| `configs.py` | Presets and the A-E variants |
+| `model.py` | Recurrent block, product-key lookup, dense baseline, scratchpad |
+| `configs.py` | Presets and the run variants |
 | `train.py` | One run: training, periodic evaluation, checkpoints |
-| `evaluate.py` | Accuracy, table usage, retrieval overlap |
-| `sweep.py` | The ten-run sweep inside a time budget |
+| `evaluate.py` | Accuracy, table usage, retrieval overlap, slot contents |
+| `sweep.py` | A set of runs, one after another: the first comparison or the scratchpad runs |
 | `report.py` | Markdown summary of finished runs |
-| `tests/` | Split leakage, causality, retrieval and resume checks |
+| `two_call.py` | Two-call diagnostic on one checkpoint, with exact counts |
+| `diagnose.py` | Read-only checks on checkpoints: reproduction, two-call, per-pass decoding |
+| `loading.py` | Load a run directory |
+| `tests/` | Split leakage, causality, retrieval, resume and scratchpad checks |
 
 Each run directory holds `config.json`, `metrics.jsonl` (one line per periodic
 evaluation), `final.json` and `checkpoint.safetensors`. The checkpoint for

@@ -9,6 +9,13 @@ new query from the updated state.
 
 Nothing in the table is written by hand. Keys, query projection and the stored
 neurons all start random and are trained by the task loss.
+
+With ``num_slots > 0`` the model also has a scratchpad. The sequence becomes
+[question tokens, slots, work position] and the model runs in outer steps. A
+step applies the block ``n_passes`` times, reads the work position out through
+the tied embedding, and writes that result into the slots as a blend of token
+embeddings. The next step starts from the question and the slots only, so the
+earlier result is read the way a typed token is read.
 """
 
 from dataclasses import dataclass
@@ -25,7 +32,7 @@ class ModelConfig:
     d_model: int = 128
     n_heads: int = 4
     max_len: int = 3
-    n_passes: int = 4
+    n_passes: int = 4  # block applications (per outer step, with slots)
     ff: str = "lookup"  # "lookup" or "dense"
     d_ff: int = 512  # hidden width when ff == "dense"
     n_subkeys: int = 128  # the table has n_subkeys ** 2 entries
@@ -35,10 +42,21 @@ class ModelConfig:
     query_norm: str = "ema"  # "ema", "layer" or "none"
     lookup_passes: str = "every"  # "every", or "first" (pass 1 only)
     tie_embeddings: bool = True
+    # Scratchpad. The defaults switch it off, which is the original model.
+    num_slots: int = 0  # slot positions; 0 means no scratchpad
+    slot_content: str = "soft"  # what is written: "soft", "hard" or "raw"
+    outer_steps_train: tuple = (1,)  # outer step counts sampled in training
+    carry_hidden: bool = False  # keep hidden state between outer steps
+    step_embedding: bool = True  # tell the work position which step it is on
 
     @property
     def n_entries(self):
         return self.n_subkeys**2
+
+    @property
+    def default_steps(self):
+        """Outer steps used when none are asked for."""
+        return min(self.outer_steps_train)
 
 
 class CausalSelfAttention(nn.Module):
@@ -205,31 +223,135 @@ class RecurrentModel(nn.Module):
         if not cfg.tie_embeddings:
             self.unembed = nn.Linear(d, cfg.n_entities, bias=False)
 
-    def __call__(self, tokens, n_passes=None, return_retrieval=False):
-        """tokens: (B, T). Returns logits over entities for the last position.
+        # Scratchpad parameters exist only when it is on, so checkpoints and
+        # seeded initialisation of the original model are unchanged.
+        if cfg.num_slots:
+            if cfg.slot_content not in ("soft", "hard", "raw"):
+                raise ValueError(f"unknown slot_content {cfg.slot_content!r}")
+            self.slot_empty = mx.random.normal((d,)) * (d**-0.5)
+            self.slot_type = mx.zeros((cfg.num_slots, d))
+            self.work_emb = mx.random.normal((d,)) * (d**-0.5)
+            if cfg.step_embedding:
+                n_steps = max(cfg.outer_steps_train)
+                self.step_emb = mx.random.normal((n_steps, d)) * (d**-0.5)
+            self.write_head = nn.Linear(d, cfg.num_slots + 1)
+            if cfg.slot_content == "raw":
+                self.raw_proj = nn.Linear(d, d)
 
-        With ``return_retrieval`` also returns, for each pass, the table
-        indices retrieved, shape (B, T, heads, top_k), or None for a pass
-        without a lookup.
+    def block(self, h, lookup=True):
+        """One application of the shared block."""
+        h = h + self.attn(self.norm_attn(h))
+        if not lookup:
+            return h, None
+        out, index = self.ff(self.norm_ff(h))
+        return h + out, index
+
+    def readout(self, h):
+        """Logits over entities from a (B, d) state."""
+        h = self.norm_out(h)
+        if self.cfg.tie_embeddings:
+            return h @ self.embed.weight[: self.cfg.n_entities].T
+        return self.unembed(h)
+
+    def token_form(self, probs):
+        """Blend of entity embeddings, weighted by probs (B, n_entities).
+
+        A one-hot row returns that entity's input embedding exactly.
+        """
+        return probs @ self.embed.weight[: self.cfg.n_entities]
+
+    def slot_content(self, logits, h_work):
+        """The vector offered to the slots at the end of a step."""
+        kind = self.cfg.slot_content
+        if kind == "raw":
+            return self.raw_proj(h_work)
+        soft = self.token_form(mx.softmax(logits, axis=-1))
+        if kind == "soft":
+            return soft
+        # hard: the top entity's embedding, with the soft blend's gradient.
+        hard = self.embed.weight[mx.argmax(mx.stop_gradient(logits), axis=-1)]
+        return soft + mx.stop_gradient(hard - soft)
+
+    def __call__(
+        self,
+        tokens,
+        n_passes=None,
+        steps=None,
+        return_retrieval=False,
+        return_trace=False,
+    ):
+        """tokens: (B, T). Returns logits over entities.
+
+        ``n_passes`` is the number of block applications: in total for the
+        original model, per outer step for a scratchpad model. ``steps`` is
+        the number of outer steps and only applies to a scratchpad model.
+
+        With ``return_retrieval`` also returns, for each block application in
+        order, the table indices retrieved, shape (B, positions, heads,
+        top_k), or None where no lookup ran. With ``return_trace`` (scratchpad
+        only) returns a dict instead, with per-step ``step_logits``, ``slots``
+        (after the step's write), ``write`` weights and ``retrieved``.
         """
         cfg = self.cfg
         n_passes = n_passes or cfg.n_passes
+        if cfg.num_slots:
+            return self._scratchpad_forward(
+                tokens, n_passes, steps or cfg.default_steps, return_retrieval, return_trace
+            )
+        if steps not in (None, 1) or return_trace:
+            raise ValueError("outer steps and traces need num_slots > 0")
+
         h = self.embed(tokens) + self.pos[: tokens.shape[1]]
         retrieved = []
         for p in range(n_passes):
-            h = h + self.attn(self.norm_attn(h))
-            if cfg.ff == "dense" or cfg.lookup_passes == "every" or p == 0:
-                out, index = self.ff(self.norm_ff(h))
-                h = h + out
-                retrieved.append(index)
-            else:
-                retrieved.append(None)
-        h = self.norm_out(h[:, -1])
-        if cfg.tie_embeddings:
-            logits = h @ self.embed.weight[: cfg.n_entities].T
-        else:
-            logits = self.unembed(h)
+            h, index = self.block(
+                h, cfg.ff == "dense" or cfg.lookup_passes == "every" or p == 0
+            )
+            retrieved.append(index)
+        logits = self.readout(h[:, -1])
         return (logits, retrieved) if return_retrieval else logits
+
+    def _scratchpad_forward(self, tokens, n_passes, steps, return_retrieval, return_trace):
+        cfg = self.cfg
+        B, L = tokens.shape
+        K, d = cfg.num_slots, cfg.d_model
+        question = self.embed(tokens) + self.pos[:L]
+        slots = mx.broadcast_to(self.slot_empty, (B, K, d))
+        trace = {"step_logits": [], "slots": [], "write": [], "retrieved": []}
+        h = None
+        for t in range(steps):
+            work = self.work_emb
+            if cfg.step_embedding:
+                # Steps beyond those trained reuse the last step's embedding.
+                step = self.step_emb[min(t, self.step_emb.shape[0] - 1)]
+                work = work + step
+            work = mx.broadcast_to(work, (B, 1, d))
+            if cfg.carry_hidden and h is not None:
+                # Keep the state at question and work positions; only the slot
+                # positions are refreshed with what was just written.
+                kept = h[:, -1:]
+                if cfg.step_embedding:
+                    kept = kept + step
+                h = mx.concatenate([h[:, :L], slots + self.slot_type, kept], axis=1)
+            else:
+                # Fresh state: only the slots carry anything between steps.
+                h = mx.concatenate([question, slots + self.slot_type, work], axis=1)
+            for i in range(n_passes):
+                h, index = self.block(
+                    h, cfg.ff == "dense" or cfg.lookup_passes == "every" or i == 0
+                )
+                trace["retrieved"].append(index)
+            logits = self.readout(h[:, -1])
+            content = self.slot_content(logits, h[:, -1])
+            write = mx.softmax(self.write_head(h[:, -1]), axis=-1)  # (B, K+1)
+            w = write[:, :K, None]  # the last weight means "write nothing"
+            slots = (1 - w) * slots + w * content[:, None, :]
+            trace["step_logits"].append(logits)
+            trace["slots"].append(slots)
+            trace["write"].append(write)
+        if return_trace:
+            return logits, trace
+        return (logits, trace["retrieved"]) if return_retrieval else logits
 
 
 def lookup_param_count(cfg: ModelConfig):
@@ -251,6 +373,7 @@ def matched_dense_width(cfg: ModelConfig):
 
 def count_parameters(model: RecurrentModel):
     groups = {"embedding": 0, "attention": 0, "feed_forward": 0, "other": 0}
+    scratchpad = ("slot_", "work_emb", "step_emb", "write_head", "raw_proj")
     for name, value in tree_flatten(model.trainable_parameters()):
         if name.startswith(("embed", "unembed", "pos")):
             groups["embedding"] += value.size
@@ -258,6 +381,8 @@ def count_parameters(model: RecurrentModel):
             groups["attention"] += value.size
         elif name.startswith("ff"):
             groups["feed_forward"] += value.size
+        elif name.startswith(scratchpad):
+            groups["scratchpad"] = groups.get("scratchpad", 0) + value.size
         else:
             groups["other"] += value.size
     groups["total"] = sum(groups.values())

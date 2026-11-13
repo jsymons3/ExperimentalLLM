@@ -1,9 +1,21 @@
-"""Accuracy, table usage and retrieval overlap."""
+"""Accuracy, table usage, retrieval overlap and scratchpad diagnostics.
+
+"Depth" means the number of passes for the original model and the number of
+outer steps for a scratchpad model.
+"""
 
 from contextlib import contextmanager
 
 import mlx.core as mx
 import numpy as np
+
+TWO_HOP_SPLITS = (
+    "two_hop_train",
+    "two_hop_id",
+    "two_hop_held_first",
+    "two_hop_held_second",
+    "two_hop_held_both",
+)
 
 
 @contextmanager
@@ -17,30 +29,52 @@ def eval_mode(model):
         model.train(was_training)
 
 
+def uses_slots(model):
+    return bool(getattr(getattr(model, "cfg", None), "num_slots", 0))
+
+
+def forward(model, tokens, depth=None, **kwargs):
+    """Run the model at a depth: passes, or outer steps with a scratchpad."""
+    if uses_slots(model):
+        return model(tokens, steps=depth, **kwargs)
+    return model(tokens, n_passes=depth, **kwargs)
+
+
+def default_depth(model):
+    cfg = model.cfg
+    return cfg.default_steps if cfg.num_slots else cfg.n_passes
+
+
 def _batches(tokens, batch_size):
     for i in range(0, len(tokens), batch_size):
         yield tokens[i : i + batch_size]
 
 
-def accuracy(model, data, rows, n_passes=None, batch_size=1024):
+def predict(model, tokens, depth=None, batch_size=1024):
+    """Top entity for each row of tokens."""
+    return np.concatenate(
+        [
+            np.array(mx.argmax(forward(model, mx.array(batch), depth), axis=-1))
+            for batch in _batches(tokens, batch_size)
+        ]
+    )
+
+
+def accuracy(model, data, rows, depth=None, batch_size=1024):
     """Exact-match accuracy on one-hop (n, 2) or two-hop (n, 3) rows."""
     tokens, targets = data.encode(rows)
-    preds = [
-        np.array(mx.argmax(model(mx.array(batch), n_passes=n_passes), axis=-1))
-        for batch in _batches(tokens, batch_size)
-    ]
-    return float((np.concatenate(preds) == targets).mean())
+    return float((predict(model, tokens, depth, batch_size) == targets).mean())
 
 
-def accuracy_by_split(model, data, n_passes=None):
+def accuracy_by_split(model, data, depth=None):
     return {
-        name: accuracy(model, data, rows, n_passes)
+        name: accuracy(model, data, rows, depth)
         for name, rows in data.eval_sets.items()
         if len(rows)
     }
 
 
-def table_usage(model, data, n_passes=None, sample=20000, batch_size=1024):
+def table_usage(model, data, depth=None, sample=20000, batch_size=1024):
     """How much of the table a sample of training questions touches.
 
     ``used_frac`` is the share of entries retrieved at least once.
@@ -57,9 +91,7 @@ def table_usage(model, data, n_passes=None, sample=20000, batch_size=1024):
         rows = rows[rng.permutation(len(rows))[:sample]]
         tokens, _ = data.encode(rows)
         for batch in _batches(tokens, batch_size):
-            _, retrieved = model(
-                mx.array(batch), n_passes=n_passes, return_retrieval=True
-            )
+            _, retrieved = forward(model, mx.array(batch), depth, return_retrieval=True)
             for index in retrieved:
                 if index is not None:
                     flat = np.array(index).ravel()
@@ -73,17 +105,26 @@ def table_usage(model, data, n_passes=None, sample=20000, batch_size=1024):
     }
 
 
-def _answer_position_sets(model, tokens, n_passes, batch_size=1024):
-    """sets[p][i]: entries retrieved at the last position of row i on pass p.
+def _answer_position_sets(model, tokens, depth, batch_size=1024):
+    """sets[d][i]: entries retrieved at the last position of row i at depth d.
 
-    sets[p] is None for a pass without a lookup.
+    The last position is the answer position: the final question token, or the
+    work position of a scratchpad model. For a scratchpad model the entries of
+    all the block applications inside a step are pooled. sets[d] is None when
+    no lookup ran at that depth.
     """
-    parts = [[] for _ in range(n_passes)]
+    group = model.cfg.n_passes if uses_slots(model) else 1
+    parts = [[] for _ in range(depth)]
     for batch in _batches(tokens, batch_size):
-        _, retrieved = model(mx.array(batch), n_passes=n_passes, return_retrieval=True)
-        for p, index in enumerate(retrieved):
-            if index is not None:
-                parts[p].append(np.array(index[:, -1]).reshape(len(batch), -1))
+        _, retrieved = forward(model, mx.array(batch), depth, return_retrieval=True)
+        for d in range(depth):
+            found = [
+                np.array(index[:, -1]).reshape(len(batch), -1)
+                for index in retrieved[d * group : (d + 1) * group]
+                if index is not None
+            ]
+            if found:
+                parts[d].append(np.concatenate(found, axis=1))
     return [
         [set(row) for row in np.concatenate(p).tolist()] if p else None for p in parts
     ]
@@ -95,24 +136,25 @@ def _mean_jaccard(a, b):
     return float(np.mean([len(x & y) / len(x | y) for x, y in zip(a, b)]))
 
 
-def retrieval_overlap(model, data, chains, n_passes=None):
+def retrieval_overlap(model, data, chains, depth=None):
     """Does the second hop fetch the entries a direct question would fetch?
 
     For each chain (h, r1, r2) with bridge b = tail[h, r1], compare the entries
     retrieved at the answer position of the two-hop question with those
     retrieved at the answer position of the direct question [b, r2].
 
-    ``same[p][q]`` is the mean Jaccard overlap between pass p+1 of the two-hop
-    question and pass q+1 of the direct question. ``control[p][q]`` is the same
-    for the direct question [b', r2] about a different entity b'. If ``same``
-    is well above ``control``, the model is reusing the stored fact about b
-    rather than a separate memory of the chain.
+    ``same[p][q]`` is the mean Jaccard overlap between depth p+1 of the
+    two-hop question and depth q+1 of the direct question (passes, or outer
+    steps with a scratchpad). ``control[p][q]`` is the same for the direct
+    question [b', r2] about a different entity b'. If ``same`` is well above
+    ``control``, the model is reusing the stored fact about b rather than a
+    separate memory of the chain.
     Returns None for models without a lookup.
     """
     cfg = model.cfg
     if cfg.ff != "lookup" or len(chains) == 0:
         return None
-    n_passes = n_passes or cfg.n_passes
+    depth = depth or max(2, default_depth(model))
     rng = np.random.default_rng(0)
     h, r1, r2 = chains[:, 0], chains[:, 1], chains[:, 2]
     bridge = data.tail[h, r1]
@@ -121,7 +163,7 @@ def retrieval_overlap(model, data, chains, n_passes=None):
     other[clash] = (other[clash] + 1) % data.n_entities
 
     def sets(tokens):
-        return _answer_position_sets(model, tokens, n_passes)
+        return _answer_position_sets(model, tokens, depth)
 
     two = sets(data.encode_two_hop(chains)[0])
     direct = sets(data.encode_one_hop(np.stack([bridge, r2], axis=1))[0])
@@ -132,22 +174,120 @@ def retrieval_overlap(model, data, chains, n_passes=None):
     }
 
 
-def full_evaluation(model, data, eval_passes, overlap_chains=500):
-    """Everything reported at the end of a run."""
+def decode_by_depth(model, data, chains, max_depth, batch_size=1024):
+    """What the answer position holds after each pass (or outer step).
+
+    Reads the answer position through the output head at every depth of a
+    two-hop question and reports how often the top entity is the bridge b and
+    how often it is the answer c.
+
+    For the original model, ``first_hop_position_bridge`` is the same reading
+    at the first-hop position (the r1 token). Attention is causal, so that
+    position computes exactly what the one-hop question [h, r1] computes.
+    """
+    h, r1 = chains[:, 0], chains[:, 1]
+    bridge = data.tail[h, r1]
+    tokens, answer = data.encode_two_hop(chains)
+    result = {"depth": list(range(1, max_depth + 1)), "bridge": [], "answer": []}
+    if uses_slots(model):
+        hits = np.zeros((max_depth, 2))
+        for start in range(0, len(tokens), batch_size):
+            rows = slice(start, start + batch_size)
+            _, trace = model(mx.array(tokens[rows]), steps=max_depth, return_trace=True)
+            for d, logits in enumerate(trace["step_logits"]):
+                top = np.array(mx.argmax(logits, axis=-1))
+                hits[d] += [(top == bridge[rows]).sum(), (top == answer[rows]).sum()]
+        result["bridge"] = (hits[:, 0] / len(tokens)).tolist()
+        result["answer"] = (hits[:, 1] / len(tokens)).tolist()
+        return result
+
+    first_hop, _ = data.encode_one_hop(chains[:, :2])
+    result["first_hop_position_bridge"] = []
+    for d in result["depth"]:
+        top = predict(model, tokens, d, batch_size)
+        result["bridge"].append(float((top == bridge).mean()))
+        result["answer"].append(float((top == answer).mean()))
+        at_r1 = predict(model, first_hop, d, batch_size)
+        result["first_hop_position_bridge"].append(float((at_r1 == bridge).mean()))
+    return result
+
+
+def slot_contents(model, data, chains, batch_size=1024):
+    """What a scratchpad model wrote after the first step of two-hop questions.
+
+    ``bridge_in_slot`` is the share of chains where some slot is closest (by
+    cosine similarity over entity embeddings) to the bridge entity.
+    ``bridge_in_readout`` is the share where the step-1 readout's top entity
+    is the bridge. ``write_weight`` is the mean total weight written to slots.
+    """
     cfg = model.cfg
+    bridge = data.tail[chains[:, 0], chains[:, 1]]
+    tokens, _ = data.encode_two_hop(chains)
+    entities = model.embed.weight[: cfg.n_entities]
+    entities = entities / mx.linalg.norm(entities, axis=-1, keepdims=True)
+    in_slot = in_readout = 0
+    written = 0.0
+    for start in range(0, len(tokens), batch_size):
+        b = bridge[start : start + batch_size]
+        _, trace = model(
+            mx.array(tokens[start : start + batch_size]), steps=1, return_trace=True
+        )
+        slots = trace["slots"][0]  # (B, K, d)
+        nearest = np.array(mx.argmax(slots @ entities.T, axis=-1))  # (B, K)
+        in_slot += (nearest == b[:, None]).any(axis=1).sum()
+        in_readout += (np.array(mx.argmax(trace["step_logits"][0], axis=-1)) == b).sum()
+        written += float(trace["write"][0][:, : cfg.num_slots].sum())
+    n = len(tokens)
+    return {
+        "bridge_in_slot": float(in_slot / n),
+        "bridge_in_readout": float(in_readout / n),
+        "write_weight": written / n,
+    }
+
+
+def two_hop_sets(data, limit=None):
+    return {
+        name: data.eval_sets[name][:limit]
+        for name in TWO_HOP_SPLITS
+        if len(data.eval_sets.get(name, ()))
+    }
+
+
+def full_evaluation(model, data, depths, overlap_chains=500):
+    """Everything reported at the end of a run."""
+    # Imported here because two_call imports this module.
+    from .two_call import diagnose as two_call_diagnose
+
+    cfg = model.cfg
+    slots = uses_slots(model)
+    depth = default_depth(model)
+    by_depth = "accuracy_by_steps" if slots else "accuracy_by_passes"
+    # One-hop calls at half the normal depth match the normal compute; calls
+    # at the full depth are the ceiling.
+    call_depths = sorted({max(1, depth // 2), depth})
     with eval_mode(model):
         result = {
+            "depth_unit": "steps" if slots else "passes",
+            "eval_depth": depth,
             "accuracy": accuracy_by_split(model, data),
-            "accuracy_by_passes": {
-                str(p): accuracy_by_split(model, data, p) for p in eval_passes
-            },
+            by_depth: {str(d): accuracy_by_split(model, data, d) for d in depths},
             "table": table_usage(model, data),
             "overlap": None,
+            "decode": {
+                name: decode_by_depth(model, data, rows, max(depth, 4) if slots else depth)
+                for name, rows in two_hop_sets(data).items()
+            },
+            "slots": None,
         }
         if cfg.ff == "lookup":
             result["overlap"] = {
-                name: retrieval_overlap(model, data, rows[:overlap_chains])
-                for name, rows in data.eval_sets.items()
-                if name.startswith("two_hop") and len(rows)
+                name: retrieval_overlap(model, data, rows)
+                for name, rows in two_hop_sets(data, overlap_chains).items()
             }
+        if slots:
+            result["slots"] = {
+                name: slot_contents(model, data, rows)
+                for name, rows in two_hop_sets(data).items()
+            }
+    result["two_call"] = two_call_diagnose(model, data, call_depths, (depth,))
     return result
