@@ -48,6 +48,10 @@ class ModelConfig:
     outer_steps_train: tuple = (1,)  # outer step counts sampled in training
     carry_hidden: bool = False  # keep hidden state between outer steps
     step_embedding: bool = True  # tell the work position which step it is on
+    # Diagnostic: give slots the position embedding of this question position
+    # (0 is the entity position), so a slot looks like a token typed there.
+    # -1 gives slots no position signal.
+    slot_position: int = -1
 
     @property
     def n_entries(self):
@@ -260,6 +264,13 @@ class RecurrentModel(nn.Module):
         """
         return probs @ self.embed.weight[: self.cfg.n_entities]
 
+    def slot_inputs(self, slots):
+        """What the block sees at the slot positions: (B, K, d)."""
+        x = slots + self.slot_type
+        if self.cfg.slot_position >= 0:
+            x = x + self.pos[self.cfg.slot_position]
+        return x
+
     def slot_content(self, logits, h_work):
         """The vector offered to the slots at the end of a step."""
         kind = self.cfg.slot_content
@@ -332,10 +343,10 @@ class RecurrentModel(nn.Module):
                 kept = h[:, -1:]
                 if cfg.step_embedding:
                     kept = kept + step
-                h = mx.concatenate([h[:, :L], slots + self.slot_type, kept], axis=1)
+                h = mx.concatenate([h[:, :L], self.slot_inputs(slots), kept], axis=1)
             else:
                 # Fresh state: only the slots carry anything between steps.
-                h = mx.concatenate([question, slots + self.slot_type, work], axis=1)
+                h = mx.concatenate([question, self.slot_inputs(slots), work], axis=1)
             for i in range(n_passes):
                 h, index = self.block(
                     h, cfg.ff == "dense" or cfg.lookup_passes == "every" or i == 0

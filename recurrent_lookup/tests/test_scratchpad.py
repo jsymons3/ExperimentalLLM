@@ -170,6 +170,16 @@ def test_question_positions_compute_what_the_original_model_computes():
         assert np.array_equal(np.array(want), np.array(got[:, :3]))
 
 
+def test_slot_position_makes_a_slot_look_like_a_typed_entity():
+    model = slot_model(slot_position=0)
+    entity = mx.array([[7], [12]])
+    typed = model.embed(entity) + model.pos[0]  # entity 7 typed at position 0
+    held = model.slot_inputs(model.embed.weight[entity])  # entity 7 held in the slot
+    assert np.array_equal(np.array(typed), np.array(held))
+    plain = slot_model().slot_inputs(model.embed.weight[entity])
+    assert np.array_equal(np.array(plain), np.array(model.embed.weight[entity]))
+
+
 def test_more_steps_than_trained_reuse_the_last_step_embedding():
     model = slot_model(outer_steps_train=(2,))
     assert model.step_emb.shape == (2, 32)

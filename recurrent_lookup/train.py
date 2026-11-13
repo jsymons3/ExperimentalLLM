@@ -57,6 +57,7 @@ MODEL_FLAGS = (
     "num_slots",
     "slot_content",
     "outer_steps_train",
+    "slot_position",
 )
 TRAIN_FLAGS = (
     "steps",
@@ -126,6 +127,13 @@ def parse_args(argv=None):
     )
     s.add_argument("--carry-hidden", action="store_true", help="keep hidden state between steps")
     s.add_argument("--no-step-embedding", action="store_true")
+    s.add_argument(
+        "--slot-position",
+        type=int,
+        metavar="P",
+        help="diagnostic: give slots the position embedding of question "
+        "position P (0 is the entity position)",
+    )
     s.add_argument(
         "--prefix-loss-weight",
         type=float,

@@ -28,7 +28,14 @@ VARIANTS = {
     "slot_soft_k3": "slot_soft with three slots",
 }
 
-SLOT_KEYS = ("num_slots", "slot_content", "outer_steps_train", "carry_hidden", "step_embedding")
+SLOT_KEYS = (
+    "num_slots",
+    "slot_content",
+    "outer_steps_train",
+    "carry_hidden",
+    "step_embedding",
+    "slot_position",
+)
 # Settings a scratchpad model gets unless they are given explicitly.
 SLOT_DEFAULTS = {"n_passes": 2, "outer_steps_train": (2, 3, 4)}
 SLOT_VARIANTS = {

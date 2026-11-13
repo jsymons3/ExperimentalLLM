@@ -228,6 +228,7 @@ All default to the original model. The scratchpad variants, and any run with
 | `--carry-hidden` | keep hidden state between steps | off |
 | `--no-step-embedding` | drop the per-step embedding on the work position | embedding on |
 | `--prefix-loss-weight` | extra loss: step-1 readout of training chains toward the bridge | 0 |
+| `--slot-position` | diagnostic: give slots the position embedding of a question position (0 is the entity position) | none |
 | `--table-weight-decay` | separate decay for sub-keys and entries | same as `--weight-decay` |
 
 ### Step 1: checks on the existing checkpoints (no training)
@@ -327,12 +328,45 @@ python -m recurrent_lookup.report runs/slots runs/overnight
 
 ### Status of the scratchpad code
 
-- Tested on MLX's Linux CPU build at tiny size only. Old checkpoints reproduce
-  their stored accuracies exactly, retraining the original variants gives
-  identical numbers, and the six-run sweep, the diagnostics and the report run
-  end to end.
-- Nothing has been run at full size or on an Apple GPU, and no run here is
-  long enough to say whether the mechanism works.
+- Tested on MLX's Linux CPU build at small size only. Old checkpoints
+  reproduce their stored accuracies exactly, retraining the original variants
+  gives identical numbers, and the six-run sweep, the diagnostics and the
+  report run end to end.
+- At full size, every scratchpad variant was built and took compiled training
+  steps at 2, 3 and 4 outer steps on a batch of 16. Nothing more was run at
+  full size, and nothing on an Apple GPU.
+
+### A small-scale test, and what it suggests
+
+Five runs on a 60-entity graph (1,200 facts), width 32, a 256-entry table,
+8,000 steps, one seed each. Chance is 1.7%. A scratchpad run took about 2.4
+times run C's time per step.
+
+| Run | Trained chains | Unseen chains | Held-out 2nd | Bridge in slot (held-out 2nd) | Write weight |
+|---|---|---|---|---|---|
+| C | 19.0% | 13.7% | 4.3% | - | - |
+| `slot_soft` | 12.3% | 5.0% | 2.0% | 1.7% | 0.05 |
+| `slot_soft_prefix` | 60.7% | 49.0% | 1.0% | 93.0% | 0.28 |
+| `slot_soft_prefix --slot-position 0` | 6.3% | 7.0% | 1.7% | 1.7% | 0.02 |
+| `slot_soft_prefix --slot-position 0 --no-step-embedding` | 36.0% | 30.3% | 3.0% | 94.3% | 0.31 |
+
+- `slot_soft` did not use its slot. The loss grades only the last step and
+  training never uses a single step, so nothing trains the first step
+  directly: one-hop accuracy was 10% at 1 step and 96% at 2. The model
+  answered from scratch in a later step and wrote almost nothing.
+- With the bridge loss the slot is used and chaining works for facts that
+  appear in training chains: 49% on unseen chains, against 14% for run C.
+- Held-out 2nd hop stayed at chance in every run. With the bridge loss the
+  bridge was in the slot for 93% of those chains and two separate calls
+  answered 72% of them, but the model chained 1%. Retrieval overlap with the
+  direct question was at its control. So at this scale the model writes the
+  bridge in token form and still does not look up the second fact the way a
+  direct question does.
+- Giving the slot the entity position's embedding, the follow-up the brief
+  names for this outcome, did not change that.
+
+This is one seed on a very small model. It shows what to look for in the full
+runs, not what they will find.
 
 ## Files
 
