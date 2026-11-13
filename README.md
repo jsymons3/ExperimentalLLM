@@ -8,6 +8,17 @@ Small language-model experiments.
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. Includes a scratchpad variant that writes intermediate results in token form. MLX, runs on an Apple silicon laptop. |
 | Diffusion LM with a global workspace | `hiPhiLLM.ipynb` | Described below. JAX/Flax notebook. |
 
+Latest results (November 13, 2026): the two 64,000-step synthetic scratchpad
+controls are complete. Removing bridge supervision leaves held-out second-hop
+accuracy at 0.25%. The parameter-matched dense control recalls 98.2% of individual
+facts and writes the correct bridge on 98.0% of held-out second-hop questions,
+but answers 0% internally versus 90.0% through two separate calls. It also fails
+on trained chains, so this is a training failure under the tested recipe, not
+proof of an inherent dense-model limitation. See the
+[completed controls and diagnostics](recurrent_lookup/README.md#completed-follow-up-results-november-13)
+and [machine-readable results](recurrent_lookup/results/followup-2026-11-13.json).
+The Wikipedia scratchpad adaptation has not started.
+
 ## hiPhiLLM.ipynb
 
 This is a **single-notebook research scaffold** that:

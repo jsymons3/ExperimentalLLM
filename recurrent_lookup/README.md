@@ -165,7 +165,10 @@ near chance on held-out ones means it memorised chains (a case table).
 - One weight decay (0.1) applies to everything, including the table, unless
   `--table-weight-decay` is given.
 
-## Status
+## Initial implementation checks (before Mac runs)
+
+These are historical checks from before the full-size Apple GPU experiments.
+The completed overwrite comparison and follow-up controls are recorded below.
 
 - Tested only on MLX's Linux CPU build, at reduced size, because that build is
   too slow for more. The tests pass, and training, resume, the sweep and the
@@ -197,7 +200,7 @@ The first sweep showed the table stores facts but the model cannot hand the
 result of one lookup to the next. This variant gives the model a place to
 write an intermediate result in the same form as a typed token, and tests
 whether it can then be read like one, including for held-out facts. It is a
-hypothesis under test, not a result.
+hypothesis tested by the comparisons recorded below.
 
 ### How it works
 
@@ -499,6 +502,69 @@ Compare independent fact recall and the existing both-facts-known diagnostic
 alongside held-out composition. The known-fact subsets can differ between
 models. If the no-bridge-loss run fails, it establishes a limitation of this
 training setup, not that intermediate supervision is fundamentally required.
+
+### Completed follow-up results, November 13
+
+Both controls completed **64,000 steps** on Apple GPU with MLX 0.32.4 and
+training source `88ea052d3799b58cd2ba46c9458732c39045b45d`. The dense run finished
+at approximately 12:21 p.m. America/Chicago on November 13, 2026. These are
+synthetic graph experiments; the Wikipedia scratchpad adaptation has not started.
+The [machine-readable results](results/followup-2026-11-13.json) contain both
+configurations, all 40 periodic training/evaluation records per run, final depth
+curves, slot interventions, two-call counts, and SHA-256 hashes of the local
+checkpoints and source result files. Checkpoints and datasets are not committed.
+
+Seed 0 throughout; the supervised lookup reference is from the completed
+overwrite comparison above. All headline accuracies use two outer steps of two
+block applications each; each evaluation split contains 2,000 questions.
+
+| Model | Ordinary fact recall | Recall of facts excluded from chains | Trained chains | Unseen chains | Held-out second | Both held out |
+|---|---|---|---|---|---|---|
+| Supervised hard lookup (reference) | 95.85% | 84.90% | 90.85% | 90.00% | 72.60% | 62.90% |
+| Hard lookup without bridge loss | 90.30% | 80.85% | 8.90% | 0.60% | 0.25% | 0.20% |
+| Supervised hard dense | 98.20% | 92.45% | 0.25% | 0.05% | 0.00% | 0.00% |
+
+The dense model has 4,970,562 parameters versus the lookup model's 4,970,498.
+Both share the hard-overwrite scratchpad, sampled training depths and optimizer
+recipe. This is parameter matching, not equal computation or independently tuned
+optimization for each architecture.
+
+On held-out second-hop questions, the final diagnostics are:
+
+| Diagnostic | No bridge loss | Dense with bridge loss |
+|---|---|---|
+| Correct bridge in the first slot write | 1 / 2,000 (0.05%) | 1,960 / 2,000 (98.00%) |
+| Native chaining | 5 / 2,000 (0.25%) | 0 / 2,000 (0.00%) |
+| Two one-hop calls, one outer step each | 3 / 2,000 (0.15%) | 1,800 / 2,000 (90.00%) |
+| Two one-hop calls, two outer steps each | 1,457 / 2,000 (72.85%) | 1,800 / 2,000 (90.00%) |
+| Native correct among both facts known at two-step depth | 5 / 1,457 (0.34%) | 0 / 1,800 (0.00%) |
+
+The one-step calls match the native chain's total four block applications.
+The two-step calls use eight total applications; they reveal independently
+recallable knowledge when a model needs more depth for one-hop questions.
+Two-call success conditional on both facts being known is 100% by construction.
+
+For the dense model, replacing the slot with the true bridge still yields
+**0 / 2,000** on held-out second-hop questions. Clearing or shuffling the slot
+also yields zero. The full final evaluation therefore confirms the interim
+probe: failure persists after a correct intermediate entity is available,
+despite strong fact recall and successful external two-call composition.
+
+Interpretation and limits:
+
+- Removing intermediate supervision prevents this lookup model from learning
+  the intended bridge-writing procedure under the tested recipe and budget.
+  It does not establish that intermediate supervision is fundamentally required.
+- The dense model also fails on **trained** chains (5 / 2,000). This is not an
+  isolated failure to generalize to held-out facts: it has not learned the
+  training procedure. A code/optimization audit and another seed are needed
+  before attributing the difference to an architectural advantage.
+- Both controls have one seed on one graph. The supervised lookup reference
+  has a second initialization seed, but the dense control has not been replicated.
+- These results do not establish that abstractions reside in the core and facts
+  reside exclusively in the lookup table, or that the mechanism transfers to
+  natural language. The table entries are learned expert computations, not
+  hand-authored fact records.
 
 ## Files
 
