@@ -4,6 +4,7 @@ Small language-model experiments.
 
 | Experiment | Where | What it is |
 |---|---|---|
+| Learned core / memory separation | [`core_memory/`](core_memory/README.md) | Natural-text recurrent LM with a dense core, learned expert memory, memory-off training and budgeted gating. Paired evaluations measure memory dependence. |
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. MLX, runs on an Apple silicon laptop. |
 | Diffusion LM with a global workspace | `hiPhiLLM.ipynb` | Described below. JAX/Flax notebook. |
 

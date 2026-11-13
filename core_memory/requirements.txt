@@ -1,0 +1,3 @@
+-r ../recurrent_lookup/requirements.txt
+# Only needed by `python -m core_memory.data --wikitext-2 ...`
+pyarrow>=18

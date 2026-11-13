@@ -72,6 +72,22 @@ python -m recurrent_lookup.report runs/overnight
 To train one run for longer, repeat its command with a larger `--steps` and
 `--resume`.
 
+### Two-call diagnostic
+
+```bash
+python -m recurrent_lookup.two_call runs/continuation-2026-11-12/E_large_s0
+```
+
+This read-only checkpoint evaluation compares native chains at 4/8 passes
+with two explicit one-hop calls at 2/4 passes each. The second call receives
+the predicted intermediate entity. It also measures native accuracy restricted
+to chains whose two component facts are independently recalled correctly.
+Two-call accuracy on that subset should be 100% by construction; the useful
+measure is how often native chaining fails despite correct component recall.
+Decomposition and an entity-token handoff are supplied externally, so this
+does not establish that the network learned either operation internally.
+Outputs include exact counts, example failures and the checkpoint SHA-256.
+
 ## The task
 
 - A random graph: 5,000 entities, 20 relations, one tail per (entity,
