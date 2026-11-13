@@ -24,6 +24,11 @@ VARIANTS = {
 # with the table off.
 REASONING = ("maths", "clutrr")
 ALL = ("maths", "clutrr", "facts")
+# Block applications per outer step, where a task needs more than the model's
+# default of one. Reading relations out of sentences takes more depth than
+# one lookup; arithmetic and facts are kept to one so that a two-step
+# question cannot be answered inside a single step.
+TASK_PASSES = {"clutrr": 2}
 # Share of ``batch_size`` each task gets. Family stories are several times
 # longer than the other questions and there are far fewer of them, so a
 # quarter-size batch costs about the same and still shows each story often.
@@ -60,7 +65,7 @@ class RunConfig:
     one_hop_every_step: bool = False
     # Share of two-step training questions whose subject is hidden after the
     # first step, so that they can only be answered through the scratchpad.
-    hide_subject_prob: float = 0.0
+    hide_subject_prob: float = 0.5
     # Tasks trained with the lookup table switched off. Only sensible for
     # questions that need no stored facts, and with a dense core (core_ff).
     table_off: tuple = ()
@@ -91,9 +96,11 @@ def build_config(variant="maths", preset="smoke", seed=0, model=None, **train):
         fields["outer_steps_train"] = tuple(fields["outer_steps_train"])
     if {**settings, **train}.get("table_off") and not fields.get("core_ff"):
         raise ValueError("switching the table off for a task needs a dense core (core_ff)")
-    return RunConfig(
-        variant=variant, preset=preset, seed=seed, model=fields, **{**settings, **train}
-    )
+    merged = {**settings, **train}
+    for name in ("tasks", "supervised", "table_off"):
+        if name in merged:
+            merged[name] = tuple(merged[name])
+    return RunConfig(variant=variant, preset=preset, seed=seed, model=fields, **merged)
 
 
 def load_run_config(run_dir):
@@ -107,6 +114,9 @@ def build_run(cfg: RunConfig):
     suite = build_suite(
         cfg.tasks, cfg.preset, eval_size=cfg.eval_size, overrides=cfg.task_overrides
     )
+    for task in suite.tasks:
+        # None means the model's own setting.
+        task.n_passes = TASK_PASSES.get(task.name) if cfg.model.get("scratchpad", True) else None
     model_cfg = PhraseConfig(
         vocab_size=len(suite.vocab),
         n_output=suite.n_output,

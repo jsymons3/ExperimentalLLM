@@ -49,6 +49,16 @@ def test_variant_settings():
     for cfg in (split, mix, control):  # one architecture and loss for stage 3
         assert cfg.model["core_ff"] == 512 and cfg.one_hop_every_step
     assert build_config("facts_plain").model["scratchpad"] is False
+    # Every run hides the subject of half its two-step training questions.
+    assert all(build_config(v).hide_subject_prob == 0.5 for v in VARIANTS)
+
+
+def test_block_applications_per_step(fake_stories):
+    suite, model_cfg = build_run(tiny("mix_split"))
+    assert model_cfg.n_passes == 1  # arithmetic and facts: one lookup per step
+    assert [t.n_passes for t in suite.tasks] == [None, 2, None]  # stories read with two
+    plain_suite, plain_cfg = build_run(tiny("clutrr_plain"))
+    assert plain_cfg.n_passes == 4 and plain_suite.tasks[0].n_passes is None
     with pytest.raises(ValueError):
         build_config("maths", table_off=("maths",))  # needs a dense core
 

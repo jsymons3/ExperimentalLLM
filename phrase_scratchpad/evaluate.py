@@ -27,17 +27,28 @@ def _batches(n, size):
     return [slice(i, i + size) for i in range(0, n, size)]
 
 
-def predict(model, questions, steps=None, batch_size=1024, slot_override=None, table=True):
+def settings(task, table=True):
+    """How the model is called for a task's questions."""
+    return {"n_passes": getattr(task, "n_passes", None), "table": table}
+
+
+def run_model(model, batch, table=True, n_passes=None, **kwargs):
+    table_on = None if table else mx.zeros((batch.shape[0],))
+    return model(batch, table_on=table_on, n_passes=n_passes, **kwargs)
+
+
+def predict(model, questions, steps=None, batch_size=1024, slot_override=None, **how):
     """The K predicted tokens for each question: (n, K).
 
-    ``table=False`` switches the lookup off, leaving only the core.
+    ``how`` is ``settings(task, table)``: the task's block applications per
+    step, and whether the lookup is on.
     """
     out = []
     for rows in _batches(len(questions), batch_size):
-        batch = mx.array(questions[rows])
         override = None if slot_override is None else mx.array(slot_override[rows])
-        table_on = None if table else mx.zeros((batch.shape[0],))
-        logits = model(batch, steps=steps, slot_override=override, table_on=table_on)
+        logits = run_model(
+            model, mx.array(questions[rows]), steps=steps, slot_override=override, **how
+        )
         out.append(np.array(mx.argmax(logits, axis=-1)))
     return np.concatenate(out)
 
@@ -49,7 +60,7 @@ def exact(predicted, target):
 
 def accuracy_by_split(model, task, steps=None, table=True):
     return {
-        name: exact(predict(model, items.question, steps, table=table), items.answer)
+        name: exact(predict(model, items.question, steps, **settings(task, table)), items.answer)
         for name, items in task.eval_sets.items()
     }
 
@@ -66,7 +77,9 @@ def table_usage(model, suite, table_off=(), sample=4000):
     for task in tasks:
         questions = task.sample(rng, sample // 2, sample // 2).question
         for rows in _batches(len(questions), 1024):
-            _, trace = model(mx.array(questions[rows]), return_trace=True)
+            _, trace = run_model(
+                model, mx.array(questions[rows]), return_trace=True, **settings(task)
+            )
             for index in trace["retrieved"]:
                 counts += np.bincount(np.array(index).ravel(), minlength=len(counts))
     p = counts[counts > 0] / counts.sum()
@@ -90,9 +103,9 @@ def scratchpad_report(model, task, items, table=True, batch_size=1024):
     rng = np.random.default_rng(0)
     written, slots = [], []
     for rows in _batches(len(questions), batch_size):
-        batch = mx.array(questions[rows])
-        table_on = None if table else mx.zeros((batch.shape[0],))
-        _, trace = model(batch, steps=2, return_trace=True, table_on=table_on)
+        _, trace = run_model(
+            model, mx.array(questions[rows]), steps=2, return_trace=True, **settings(task, table)
+        )
         written.append(np.array(mx.argmax(trace["step_logits"][0], axis=-1)))
         slots.append(np.array(trace["slots"][0]))
     written, slots = np.concatenate(written), np.concatenate(slots)
@@ -108,7 +121,8 @@ def scratchpad_report(model, task, items, table=True, batch_size=1024):
         "bridge_written": exact(written, items.bridge),
         "interventions": {
             name: exact(
-                predict(model, questions, 2, batch_size, override, table), items.answer
+                predict(model, questions, 2, batch_size, override, **settings(task, table)),
+                items.answer,
             )
             for name, override in conditions.items()
         },
@@ -128,7 +142,7 @@ def two_call(model, task, items, steps, table=True):
         return None
 
     def ask(questions, depth=None):
-        return predict(model, questions, depth, table=table)
+        return predict(model, questions, depth, **settings(task, table))
 
     native = (ask(items.question) == items.answer).all(axis=1)
     first = ask(items.first, steps)

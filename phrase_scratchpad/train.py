@@ -39,7 +39,7 @@ MODEL_FLAGS = (
 )
 TRAIN_FLAGS = (
     "steps", "batch_size", "two_hop_frac", "lr", "warmup", "weight_decay",
-    "table_weight_decay", "grad_clip", "bridge_loss_weight", "hide_subject_prob",
+    "table_weight_decay", "grad_clip", "bridge_loss_weight", "hide_subject_prob", "table_off",
     "eval_every", "log_every", "eval_size",
 )
 
@@ -86,6 +86,10 @@ def parse_args(argv=None):
     t.add_argument("--table-weight-decay", type=float)
     t.add_argument("--grad-clip", type=float)
     t.add_argument("--bridge-loss-weight", type=float)
+    t.add_argument(
+        "--table-off", nargs="*", metavar="TASK",
+        help="tasks trained with the lookup table switched off (needs --core-ff)",
+    )
     t.add_argument(
         "--hide-subject-prob", type=float,
         help="share of two-step training questions whose subject is hidden after step one",
@@ -175,13 +179,14 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         after the first step.
         """
 
-        def task_loss(model, question, answer, bridge, teach_bridge, every_step, table_on, hide):
+        def task_loss(task, model, question, answer, bridge, teach_bridge, every_step, table_on, hide):
             logits, trace = model(
                 question,
                 steps=steps,
                 return_trace=True,
                 table_on=table_on if cfg.table_off else None,
                 hide_prefix=hide if cfg.hide_subject_prob else None,
+                n_passes=task.n_passes,
             )
             earlier = trace["step_logits"][:-1]
             share = (1 - every_step) + every_step / (len(earlier) + 1)
@@ -201,8 +206,8 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
             # separate forward pass: seven arrays per task. Tasks count
             # equally, whatever their batch sizes.
             total = mx.array(0.0)
-            for i, size in enumerate(sizes):
-                total = total + task_loss(model, *batch[7 * i : 7 * i + 7]) / size
+            for i, (task, size) in enumerate(zip(suite.tasks, sizes)):
+                total = total + task_loss(task, model, *batch[7 * i : 7 * i + 7]) / size
             return total / len(sizes)
 
         loss_and_grad = nn.value_and_grad(model, loss_fn)

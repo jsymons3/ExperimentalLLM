@@ -41,7 +41,7 @@ class PhraseConfig:
     answer_len: int  # K: tokens in an answer, and slots in the scratchpad
     d_model: int = 128
     n_heads: int = 4
-    n_passes: int = 2  # block applications per outer step
+    n_passes: int = 1  # block applications per outer step
     ff: str = "lookup"  # "lookup" or "dense"
     d_ff: int = 512
     core_ff: int = 0  # hidden width of an always-on dense MLP; 0 means none
@@ -214,6 +214,7 @@ class PhraseModel(nn.Module):
         slot_override=None,
         table_on=None,
         hide_prefix=None,
+        n_passes=None,
     ):
         """question: (B, L) token ids, padded at the end. Returns logits
         (B, K, n_output) for the answer's K tokens.
@@ -225,7 +226,8 @@ class PhraseModel(nn.Module):
         ``table_on`` (B,) of 0/1 switches the lookup off for some questions.
         ``hide_prefix`` (B,) hides that many leading question tokens from the
         second step on, so those questions can only be answered through the
-        scratchpad. It is a training aid.
+        scratchpad. It is a training aid. ``n_passes`` overrides the number
+        of block applications per step for this call.
         """
         cfg = self.cfg
         B, L = question.shape
@@ -258,7 +260,7 @@ class PhraseModel(nn.Module):
                 parts = [asked, mx.broadcast_to(self.work_emb, (B, K, d))]
             h = mx.concatenate(parts, axis=1)
             hide = hide_prefix is not None and t > 0
-            for _ in range(cfg.n_passes):
+            for _ in range(n_passes or cfg.n_passes):
                 h, index = self.block(
                     h, later_mask if hide else mask, later_valid if hide else valid, table_on
                 )

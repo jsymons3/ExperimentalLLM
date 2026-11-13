@@ -122,7 +122,7 @@ for fact chains (many directors are "American") and 10% for stories.
 ## The model
 
 The block from `recurrent_lookup/` (causal attention, then the product-key
-lookup), applied twice per outer step. The sequence is
+lookup). The sequence is
 
     [question tokens] [K scratchpad slots] [K work positions]
 
@@ -132,7 +132,24 @@ starts fresh from the question and the scratchpad. The last step's
 predictions are the answer. K is 3 for arithmetic, 2 for stories and 4 for
 facts or any mix.
 
-Two additions are used only in stage 3:
+### Making the model use the scratchpad
+
+Small checks showed that writing the right intermediate answer is not
+enough: the model writes it and then answers without reading it. Two
+settings close the ways around, and both are on by default.
+
+- **One block application per step** for arithmetic and facts (the graph
+  experiment used two). With two, a step is deep enough to redo both
+  arithmetic operations from the question. Stories keep two, because reading
+  a relation out of a sentence takes more depth than one lookup.
+- **Hiding the subject.** For half of the two-step training questions, the
+  subject (the first number, or the film's name) is hidden from the second
+  step on. Those questions can only be answered from what step 1 wrote.
+  Nothing is hidden at test time.
+
+`--n-passes 2` and `--hide-subject-prob 0` turn them off.
+
+### Two additions used only in stage 3
 
 - **A small dense core**: an always-on MLP (width 512) beside the lookup.
 - **A table switch**: the lookup can be turned off per question, leaving
@@ -210,11 +227,20 @@ Each run has one seed. Small gaps are noise.
 - **Stage 3 grades one-step questions at every step.** The other runs grade
   only the last step, as in the graph experiment. Without an intermediate
   answer for fact chains, nothing else would train the first step on facts.
+- **The control is also a test of its own.** `facts_unsupervised` hides the
+  subject too, so it shows whether that pressure alone makes the model write
+  the intermediate answer without ever being taught it.
+- **Stories may not need the scratchpad.** A two-sentence story can be read
+  and combined inside one step, and in a small check clearing the scratchpad
+  made no difference. Their role is to give the core reasoning that needs no
+  stored facts. The report shows whether the scratchpad is used.
 - **Stories get a quarter-size batch.** They are several times longer than
   other questions and there are far fewer of them. Tasks count equally in the
   loss whatever their batch size.
 - **Stages 1 and 2 use the lookup-only block** that worked on the graph task.
   Only the stage 3 runs have the dense core.
+- **The baselines** with no scratchpad use four block applications, the most
+  a scratchpad run uses on arithmetic or facts.
 
 ## Data
 
@@ -232,16 +258,58 @@ Each run has one seed. Small gaps are noise.
 ## Status
 
 - Written and tested on MLX's Linux CPU build, which is far too slow for a
-  full-size run. 23 tests pass, every run trains, resumes, evaluates and
+  full-size run. 25 tests pass, every run trains, resumes, evaluates and
   reports end to end at tiny size, and the existing 58 tests for the other
   experiments still pass.
-- Not run on an Apple GPU or at full size. Speed, memory and whether the
-  defaults learn in one night are unknown. `--estimate-only` will show the
-  speed.
+- Every run was built at full size and took a few training steps and an
+  evaluation on a small batch.
+- Not run on an Apple GPU or for any length at full size. Speed, memory and
+  whether the defaults learn in one night are unknown. `--estimate-only` will
+  show the speed.
+- If the compiled training step is rejected on the Mac, add `--no-compile`.
 - Learning rate, batch size, widths and the stage 3 loss are untuned starting
   points.
 
-LEARNING_CHECKS
+### Small checks run while building
+
+These ran on CPU with a much smaller model (width 32 or 48, a 256-entry
+table), cut-down tasks, a few thousand steps and one seed each. They show
+that the code learns and what the settings do. They do not predict the
+full-size results.
+
+Facts, 60 people, intermediate answer taught, 6,000 steps. The guessing floor
+on held-out 2nd chains is 31%.
+
+| Setting | Unseen chains | Held-out 2nd | Held-out 2nd with the scratchpad shuffled |
+|---|---|---|---|
+| Two passes per step, nothing hidden | 92% | 21% | 20% |
+| One pass per step, nothing hidden | 98% | 41% | 33% |
+| One pass per step, subject hidden half the time (the default) | 99% | 73% | 20% |
+
+Arithmetic, numbers up to 19, intermediate result taught, 6,000 steps.
+
+| Setting | Unseen chains | Held-out 2nd | Unseen chains with the scratchpad shuffled |
+|---|---|---|---|
+| Two passes per step | 59% | 66% | 58% |
+| One pass per step | 76% | 75% | 9% |
+
+- **With two passes the scratchpad was written and then ignored.** Shuffling
+  it changed nothing on arithmetic. With one pass it became necessary.
+- **Facts found a second way round**: the table learned to send a film
+  straight to what it had stored about the film's director, which answers
+  chains it has practised with but not held-out second steps. Hiding the
+  subject removed that route and held-out 2nd rose from 41% to 73%.
+- **Family stories**, 1,500 of them, 4,000 steps: 61% on two-step questions
+  about unseen stories with two passes per step, 45% with one, against a 10%
+  floor. Clearing the scratchpad made no difference in either case.
+- **Facts with no intermediate answer taught** (the stage 3 control): 94% on
+  unseen chains and 32% on held-out 2nd, which is the floor. It answered most
+  chains in a single step through the shortcut above and never wrote the
+  bridge (1%).
+- **The full default combination was only smoke-tested.** Arithmetic with
+  one pass and hiding together, and the three-task run with the table off,
+  both train and evaluate, but neither was run long enough here to show
+  whether it learns.
 
 ## Files
 
