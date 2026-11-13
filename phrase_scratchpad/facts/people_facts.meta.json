@@ -1,0 +1,46 @@
+{
+  "source_dataset": "xanhho/2WikiMultihopQA",
+  "source_revision": "612bc5039a457880d9e7d84c3b0a4cf154b70e4f",
+  "source_license": "Apache-2.0",
+  "source_sha256": {
+    "train.parquet": "a0f464f1604edf40ad990b605c61c03d56911c106d09ad32becf6afcf3201d52",
+    "dev.parquet": "c0d8b60b9026b728fb07ad74c5252a0f188f6942e8ba5c02df4dfa369502ea8d"
+  },
+  "max_words_per_name": 4,
+  "min_first_hop_facts_per_person": 3,
+  "min_second_hop_facts_per_person": 3,
+  "first_hop_relations": [
+    "director",
+    "performer",
+    "composer",
+    "father",
+    "mother",
+    "spouse",
+    "producer",
+    "child",
+    "sibling",
+    "founded by",
+    "creator",
+    "editor",
+    "presenter"
+  ],
+  "second_hop_relations": [
+    "country of citizenship",
+    "date of birth",
+    "date of death",
+    "place of birth",
+    "place of death",
+    "educated at",
+    "cause of death",
+    "place of burial",
+    "employer",
+    "award received",
+    "father",
+    "mother",
+    "spouse",
+    "child",
+    "sibling"
+  ],
+  "facts": 36950,
+  "sha256": "f5cf26f9beb05dfd5ead34a91d804b50f9372a7027545934bd092406af639472"
+}
