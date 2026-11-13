@@ -368,6 +368,69 @@ times run C's time per step.
 This is one seed on a very small model. It shows what to look for in the full
 runs, not what they will find.
 
+### Full-overwrite comparison (Mac overnight run)
+
+This comparison isolates two mixtures: retaining the old slot, and blending
+several predicted entity embeddings. All three arms use the same bridge loss
+(weight 1.0), graph, initial weights for a given seed, batch size, optimizer,
+and sampled outer depths. The graph is the full 5,000-entity / 100,000-fact
+problem. Each arm runs with seeds 0 and 1, in this order within each seed:
+
+| Variant | Slot write | Content |
+|---|---|---|
+| `slot_soft_prefix` | Learned partial write | Probability-weighted entity embeddings |
+| `slot_soft_overwrite` | Always replaces the whole slot | Probability-weighted entity embeddings |
+| `slot_hard_overwrite` | Always replaces the whole slot | Predicted top entity, soft straight-through gradient |
+
+The full-overwrite variants are trained that way from initialization. They
+never receive the true intermediate entity as input during training. The
+write-head parameters remain present to preserve matched initialization but
+are bypassed in overwrite mode. Full overwrite currently requires one slot.
+
+On this checkout, start or resume from Terminal with:
+
+```bash
+bash scripts/run_overwrite_overnight.sh
+```
+
+The launcher uses `.venv`, keeps the Mac awake with `caffeinate`, and writes
+to `runs/overwrite-2026-11-13/overnight.log`. Keep the Mac plugged in, its lid
+open, and that Terminal session running. Ctrl-C saves the current checkpoint;
+the same command resumes. Checkpoints also save every five minutes. A lock
+prevents accidentally launching the same sweep twice.
+
+The timing pilot measures 500 steps and full diagnostics for each arm. The
+planner chooses equal steps across six runs for an estimated seven-hour
+budget, capped at 128,200 steps per run. Allow extra time for sustained-load
+slowdowns. `plan.json` records the exact step count and timings; rerunning
+reuses it. Do not change training settings while resuming; use a fresh output
+directory for a different experiment. This comparison matches its three arms,
+not necessarily the training duration of the historical run C.
+
+The prepared November 13 plan is **64,000 steps per run**, six runs, about
+seven hours total on this MacBook. The timing pilots completed 500 measured
+training steps per arm at full size, with full end-of-run diagnostics.
+
+In a second Terminal:
+
+```bash
+tail -f runs/overwrite-2026-11-13/overnight.log
+```
+
+`report.md` updates after every completed run. In addition to the usual
+accuracies, depth curves, and two-call comparisons (including chains whose
+component facts are both known), `final.json` records slot interventions:
+normal, reset to the learned empty vector, shuffled between questions, true
+bridge written with the original write weight, and true bridge as a clean
+embedding. They replace only the handoff after step 1. Oracle conditions use
+answers at evaluation time and must not be reported as model accuracy.
+
+Judge the comparison primarily on held-out second-hop and both-held-out
+accuracy, with independent fact recall and the two-call diagnostic alongside
+them. A falling training loss or a decodable bridge alone is insufficient.
+Both seeds use the same graph; they measure initialization/training variation,
+not generalization across independently generated graphs.
+
 ## Files
 
 | File | Contents |

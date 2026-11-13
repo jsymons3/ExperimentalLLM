@@ -235,6 +235,29 @@ def build_report(roots):
             "",
         ]
 
+    interventions = {
+        v: fs for v, fs in slot_runs.items() if any(f.get("slot_interventions") for f in fs)
+    }
+    if interventions:
+        conditions = ("normal", "cleared", "shuffled", "oracle_write", "oracle_exact")
+        rows = [
+            [variant, label]
+            + [spread([
+                f.get("slot_interventions", {}).get(split, {}).get(c, {}).get("accuracy")
+                for f in finals
+            ]) for c in conditions]
+            for variant, finals in interventions.items()
+            for split, label in [SPLIT_COLUMNS[1]] + TEST_GROUPS
+        ]
+        out += [
+            "## Slot interventions after step 1", "",
+            table(["run", "questions"] + list(conditions), rows), "",
+            ("Cleared restores the learned empty vector. Shuffled uses another question's "
+             "stored slot. oracle_write supplies the true bridge using the model's write "
+             "weight; oracle_exact supplies its clean embedding. These oracle conditions "
+             "are evaluation-only, not model accuracy."), "",
+        ]
+
     rows = []
     for variant, finals in runs.items():
         if not finals[0].get("overlap"):

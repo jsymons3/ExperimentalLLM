@@ -17,6 +17,7 @@ Writes to the output directory:
 
 import argparse
 import json
+import math
 import os
 import platform
 import time
@@ -56,6 +57,7 @@ MODEL_FLAGS = (
     "query_norm",
     "num_slots",
     "slot_content",
+    "slot_write",
     "outer_steps_train",
     "slot_position",
 )
@@ -118,6 +120,7 @@ def parse_args(argv=None):
     s = p.add_argument_group("scratchpad (off unless num_slots > 0)")
     s.add_argument("--num-slots", type=int, help="slot positions; 0 is the original model")
     s.add_argument("--slot-content", choices=["soft", "hard", "raw"])
+    s.add_argument("--slot-write", choices=["gated", "overwrite"])
     s.add_argument(
         "--outer-steps-train",
         type=int,
@@ -308,7 +311,10 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
             mx.array(tok1), mx.array(y1), mx.array(tok2), mx.array(y2), mx.array(bridge)
         )
         mx.eval(loss, state)
-        return loss.item()
+        value = loss.item()
+        if not math.isfinite(value):
+            raise FloatingPointError("non-finite training loss; stopping this run")
+        return value
 
     def periodic_eval():
         with eval_mode(model):

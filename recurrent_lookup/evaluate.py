@@ -253,6 +253,50 @@ def two_hop_sets(data, limit=None):
     }
 
 
+def slot_interventions(model, data, chains, batch_size=512):
+    """Replace only the slot passed from step 1 to step 2, at evaluation time.
+
+    Oracle conditions use the true bridge solely as a diagnostic. The normal
+    training and inference paths never receive it. Shuffling preserves stored
+    vectors but assigns every question a different question's slot.
+    """
+    if not uses_slots(model) or default_depth(model) < 2:
+        raise ValueError("slot interventions need at least two outer steps")
+    tokens, target = data.encode_two_hop(chains)
+    n = len(tokens)
+    bridge = data.tail[chains[:, 0], chains[:, 1]]
+    stored, writes = [], []
+    with eval_mode(model):
+        for start in range(0, n, batch_size):
+            _, trace = model(mx.array(tokens[start:start + batch_size]), steps=1, return_trace=True)
+            stored.append(np.array(trace["slots"][0]))
+            writes.append(np.array(trace["write"][0][:, :model.cfg.num_slots, None]))
+        stored = np.concatenate(stored)
+        writes = mx.array(np.concatenate(writes))
+        order = np.random.default_rng(0).permutation(n)
+        permutation = np.empty(n, dtype=np.int32)
+        permutation[order] = np.roll(order, 1)
+        true_content = model.embed.weight[mx.array(bridge)][:, None, :]
+        empty = mx.broadcast_to(model.slot_empty, stored.shape)
+        overrides = {
+            "normal": None,
+            "cleared": empty,
+            "shuffled": mx.array(stored[permutation]),
+            "oracle_write": (1 - writes) * empty + writes * true_content,
+            "oracle_exact": mx.broadcast_to(true_content, stored.shape),
+        }
+        result = {}
+        for name, slots in overrides.items():
+            correct = 0
+            for start in range(0, n, batch_size):
+                end = start + batch_size
+                kwargs = {} if slots is None else {"slot_override": slots[start:end]}
+                pred = np.array(mx.argmax(model(mx.array(tokens[start:end]), **kwargs), axis=-1))
+                correct += int((pred == target[start:end]).sum())
+            result[name] = {"correct": correct, "n": n, "accuracy": correct / n}
+    return result
+
+
 def full_evaluation(model, data, depths, overlap_chains=500):
     """Everything reported at the end of a run."""
     # Imported here because two_call imports this module.
@@ -289,5 +333,10 @@ def full_evaluation(model, data, depths, overlap_chains=500):
                 name: slot_contents(model, data, rows)
                 for name, rows in two_hop_sets(data).items()
             }
+            if depth >= 2:
+                result["slot_interventions"] = {
+                    name: slot_interventions(model, data, rows)
+                    for name, rows in two_hop_sets(data).items()
+                }
     result["two_call"] = two_call_diagnose(model, data, call_depths, (depth,))
     return result

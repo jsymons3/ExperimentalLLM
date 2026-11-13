@@ -23,7 +23,9 @@ run, for example ``--lr 3e-4`` or ``--top-k 16``.
 """
 
 import argparse
+import fcntl
 import json
+import os
 import subprocess
 import sys
 import time
@@ -54,7 +56,12 @@ SLOT_RUNS = [
     ("slot_soft", 2),
     ("slot_soft_k3", 0),
 ]
-RUN_SETS = {"overnight": RUNS, "slots": SLOT_RUNS}
+OVERWRITE_RUNS = [
+    (variant, seed)
+    for seed in (0, 1)
+    for variant in ("slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite")
+]
+RUN_SETS = {"overnight": RUNS, "slots": SLOT_RUNS, "overwrite": OVERWRITE_RUNS}
 EVALS_PER_RUN = 40
 
 # Settings that must match the baseline run for results to be comparable.
@@ -198,6 +205,7 @@ def main(argv=None):
     p.add_argument("--out", help="default: runs/<name of the run set>")
     p.add_argument("--hours", type=float, default=7.5, help="total time budget")
     p.add_argument("--steps", type=int, help="fix the step count for every run")
+    p.add_argument("--max-steps", type=int, help="cap a time-budgeted plan at this step count")
     p.add_argument("--pilot-steps", type=int, default=200)
     p.add_argument("--no-timing", action="store_true", help="skip the timing runs")
     p.add_argument(
@@ -217,7 +225,22 @@ def main(argv=None):
     runs = RUN_SETS[args.runs]
     out = Path(args.out or f"runs/{args.runs}")
     out.mkdir(parents=True, exist_ok=True)
+    # Hold this descriptor for the sweep's lifetime, including child runs.
+    lock = (out / "sweep.lock").open("a+")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        raise SystemExit(f"another sweep is already using {out}") from None
+    lock.seek(0)
+    lock.truncate()
+    lock.write(str(os.getpid()) + "\n")
+    lock.flush()
     plan_path = out / "plan.json"
+    signature = {"preset": args.preset, "runs": [list(r) for r in runs], "extra": extra}
+    if plan_path.exists():
+        saved = json.loads(plan_path.read_text())
+        if saved.get("signature", signature) != signature:
+            raise SystemExit("saved plan has different settings; use a new output directory")
     if args.runs == "slots" and not args.steps and not plan_path.exists():
         raise SystemExit(
             "the scratchpad runs need --steps, set to the step count of the runs "
@@ -237,6 +260,8 @@ def main(argv=None):
         else:
             budget = args.hours * 3600 - (time.perf_counter() - started)
             steps = plan_steps(timings, budget, runs)
+            if args.max_steps is not None:
+                steps = min(steps, args.max_steps)
             if steps < 1000:
                 raise SystemExit(
                     f"a {args.hours}h budget allows only {steps} steps per run; "
@@ -248,6 +273,10 @@ def main(argv=None):
                 v: run_minutes(t, plan["steps"]) for v, t in timings.items()
             }
             plan["timings"] = timings
+    if plan_path.exists() and saved["steps"] != plan["steps"]:
+        if any(out.glob("*/checkpoint.safetensors")) or any(out.glob("*/final.json")):
+            raise SystemExit("cannot change a started sweep's step count; use a new output directory")
+    plan["signature"] = signature
     plan_path.write_text(json.dumps(plan, indent=2))
 
     steps = plan["steps"]
@@ -302,6 +331,9 @@ def main(argv=None):
             print(f"{run_dir.name} exited with code {code}; continuing")
             if code == 130:  # interrupted by the user
                 break
+        else:
+            roots = [out] + ([args.baseline.parent] if args.baseline else [])
+            write_report(roots, out)
 
     print()
     roots = [out] + ([args.baseline.parent] if args.baseline else [])

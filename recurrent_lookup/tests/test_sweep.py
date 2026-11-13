@@ -1,9 +1,13 @@
 """Checks on the sweep planning and the report."""
 
+import fcntl
 import json
+
+import pytest
 
 from recurrent_lookup.report import build_report
 from recurrent_lookup.sweep import EVALS_PER_RUN, RUNS, plan_steps
+from recurrent_lookup.sweep import main as sweep_main
 
 
 def test_plan_fits_the_budget():
@@ -28,6 +32,22 @@ def test_plan_fits_the_budget():
 def test_ten_runs_with_three_seeds_for_a_and_c():
     assert len(RUNS) == len(set(RUNS)) == 10
     assert sum(v == "A" for v, _ in RUNS) == sum(v == "C" for v, _ in RUNS) == 3
+
+
+def test_saved_plan_refuses_different_settings_and_concurrent_runs(tmp_path):
+    args = ["--runs", "overwrite", "--out", str(tmp_path), "--steps", "1000", "--no-timing", "--estimate-only"]
+    sweep_main(args)
+    with pytest.raises(SystemExit, match="different settings"):
+        sweep_main(args + ["--lr", "0.002"])
+    with (tmp_path / "sweep.lock").open("a+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        with pytest.raises(SystemExit, match="already using"):
+            sweep_main(args)
+    run = tmp_path / "slot_soft_prefix_s0"
+    run.mkdir()
+    (run / "checkpoint.safetensors").touch()
+    with pytest.raises(SystemExit, match="step count"):
+        sweep_main(args + ["--steps", "2000"])
 
 
 def fake_final(variant, seed, held_second, lookup):

@@ -14,8 +14,8 @@ With ``num_slots > 0`` the model also has a scratchpad. The sequence becomes
 [question tokens, slots, work position] and the model runs in outer steps. A
 step applies the block ``n_passes`` times, reads the work position out through
 the tied embedding, and writes that result into the slots as a blend of token
-embeddings. The next step starts from the question and the slots only, so the
-earlier result is read the way a typed token is read.
+embeddings. The next step starts from the question and the slots only. Whether
+the model reuses ordinary token lookups through that interface is experimental.
 """
 
 from dataclasses import dataclass
@@ -45,6 +45,7 @@ class ModelConfig:
     # Scratchpad. The defaults switch it off, which is the original model.
     num_slots: int = 0  # slot positions; 0 means no scratchpad
     slot_content: str = "soft"  # what is written: "soft", "hard" or "raw"
+    slot_write: str = "gated"  # "gated" or "overwrite" (one slot only)
     outer_steps_train: tuple = (1,)  # outer step counts sampled in training
     carry_hidden: bool = False  # keep hidden state between outer steps
     step_embedding: bool = True  # tell the work position which step it is on
@@ -232,6 +233,10 @@ class RecurrentModel(nn.Module):
         if cfg.num_slots:
             if cfg.slot_content not in ("soft", "hard", "raw"):
                 raise ValueError(f"unknown slot_content {cfg.slot_content!r}")
+            if cfg.slot_write not in ("gated", "overwrite"):
+                raise ValueError(f"unknown slot_write {cfg.slot_write!r}")
+            if cfg.slot_write == "overwrite" and cfg.num_slots != 1:
+                raise ValueError("full overwrite requires exactly one slot")
             self.slot_empty = mx.random.normal((d,)) * (d**-0.5)
             self.slot_type = mx.zeros((cfg.num_slots, d))
             self.work_emb = mx.random.normal((d,)) * (d**-0.5)
@@ -260,7 +265,7 @@ class RecurrentModel(nn.Module):
     def token_form(self, probs):
         """Blend of entity embeddings, weighted by probs (B, n_entities).
 
-        A one-hot row returns that entity's input embedding exactly.
+        A one-hot row returns that entity's input embedding, up to matmul precision.
         """
         return probs @ self.embed.weight[: self.cfg.n_entities]
 
@@ -290,6 +295,7 @@ class RecurrentModel(nn.Module):
         steps=None,
         return_retrieval=False,
         return_trace=False,
+        slot_override=None,
     ):
         """tokens: (B, T). Returns logits over entities.
 
@@ -302,10 +308,23 @@ class RecurrentModel(nn.Module):
         top_k), or None where no lookup ran. With ``return_trace`` (scratchpad
         only) returns a dict instead, with per-step ``step_logits``, ``slots``
         (after the step's write), ``write`` weights and ``retrieved``.
+
+        ``slot_override`` replaces the first step's stored slots before step
+        2 reads them. It is an evaluation-only intervention, never training input.
         """
         cfg = self.cfg
+        if slot_override is not None:
+            if self.training or not cfg.num_slots:
+                raise ValueError("slot overrides are evaluation-only and need a scratchpad")
+            if slot_override.shape != (tokens.shape[0], cfg.num_slots, cfg.d_model):
+                raise ValueError("slot override must have shape (batch, slots, width)")
         n_passes = n_passes or cfg.n_passes
         if cfg.num_slots:
+            if slot_override is not None:
+                return self._scratchpad_forward(
+                    tokens, n_passes, steps or cfg.default_steps,
+                    return_retrieval, return_trace, slot_override,
+                )
             return self._scratchpad_forward(
                 tokens, n_passes, steps or cfg.default_steps, return_retrieval, return_trace
             )
@@ -322,7 +341,9 @@ class RecurrentModel(nn.Module):
         logits = self.readout(h[:, -1])
         return (logits, retrieved) if return_retrieval else logits
 
-    def _scratchpad_forward(self, tokens, n_passes, steps, return_retrieval, return_trace):
+    def _scratchpad_forward(
+        self, tokens, n_passes, steps, return_retrieval, return_trace, slot_override=None
+    ):
         cfg = self.cfg
         B, L = tokens.shape
         K, d = cfg.num_slots, cfg.d_model
@@ -354,9 +375,15 @@ class RecurrentModel(nn.Module):
                 trace["retrieved"].append(index)
             logits = self.readout(h[:, -1])
             content = self.slot_content(logits, h[:, -1])
-            write = mx.softmax(self.write_head(h[:, -1]), axis=-1)  # (B, K+1)
+            if cfg.slot_write == "overwrite":
+                # Preserve parameter initialization across arms; bypass the gate.
+                write = mx.broadcast_to(mx.array([1.0, 0.0]), (B, 2))
+            else:
+                write = mx.softmax(self.write_head(h[:, -1]), axis=-1)  # (B, K+1)
             w = write[:, :K, None]  # the last weight means "write nothing"
             slots = (1 - w) * slots + w * content[:, None, :]
+            if t == 0 and slot_override is not None:
+                slots = slot_override
             trace["step_logits"].append(logits)
             trace["slots"].append(slots)
             trace["write"].append(write)

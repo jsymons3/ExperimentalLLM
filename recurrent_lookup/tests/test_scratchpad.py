@@ -18,12 +18,18 @@ from recurrent_lookup.evaluate import (
     forward,
     retrieval_overlap,
     slot_contents,
+    slot_interventions,
 )
 from recurrent_lookup.loading import load_run
 from recurrent_lookup.model import ModelConfig, RecurrentModel
 from recurrent_lookup.report import build_report
 from recurrent_lookup.sweep import SLOT_RUNS, baseline_differences, planned_config
-from recurrent_lookup.train import build_optimizer, load_checkpoint, run, save_checkpoint
+from recurrent_lookup.train import (
+    build_optimizer,
+    load_checkpoint,
+    run,
+    save_checkpoint,
+)
 from recurrent_lookup.two_call import diagnose as two_call_diagnose
 
 TOKENS = mx.array([[3, 41, 45], [7, 42, 44]])
@@ -78,13 +84,14 @@ def test_no_slots_is_the_original_model():
         model(TOKENS, steps=2)
 
 
-def test_one_hot_through_the_soft_blend_returns_the_embedding_exactly():
+def test_one_hot_through_the_soft_blend_returns_the_embedding_numerically():
     model = slot_model()
     ids = [0, 7, 39]
     one_hot = np.zeros((3, 40), dtype=np.float32)
     one_hot[np.arange(3), ids] = 1
     blended = np.array(model.token_form(mx.array(one_hot)))
-    assert np.array_equal(blended, np.array(model.embed.weight)[ids])
+    # Apple GPU matmul may round inputs even when the arrays have float32 dtype.
+    np.testing.assert_allclose(blended, np.array(model.embed.weight)[ids], rtol=1e-3, atol=1e-6)
 
 
 def test_final_loss_reaches_parameters_used_only_at_step_one():
@@ -125,8 +132,7 @@ def test_slot_update_is_a_soft_overwrite_with_token_form_content():
     write = np.array(trace["write"][0])  # (B, K+1)
     assert write.shape == (2, 4)
     np.testing.assert_allclose(write.sum(axis=1), 1, atol=1e-5)
-    probs = np.array(mx.softmax(trace["step_logits"][0], axis=-1))
-    content = probs @ np.array(model.embed.weight)[:40]
+    content = np.array(model.token_form(mx.softmax(trace["step_logits"][0], axis=-1)))
     empty = np.array(model.slot_empty)
     w = write[:, :3, None]
     expected = (1 - w) * empty + w * content[:, None, :]
@@ -138,6 +144,68 @@ def never_write(model):
     K = model.cfg.num_slots
     model.write_head.weight = mx.zeros_like(model.write_head.weight)
     model.write_head.bias = mx.array([-50.0] * K + [50.0])
+
+
+@pytest.mark.parametrize("content", ["soft", "hard"])
+def test_full_overwrite_bypasses_gate_and_keeps_interstep_gradient(content):
+    model = slot_model(slot_write="overwrite", slot_content=content)
+    never_write(model)
+    _, trace = model(TOKENS, steps=2, return_trace=True)
+    expected = model.slot_content(trace["step_logits"][0], None)
+    np.testing.assert_allclose(np.array(trace["slots"][0][:, 0]), np.array(expected), atol=1e-6)
+    np.testing.assert_array_equal(np.array(trace["write"][0]), [[1, 0], [1, 0]])
+    if content == "hard":
+        top = mx.argmax(trace["step_logits"][0], axis=-1)
+        np.testing.assert_allclose(
+            np.array(trace["slots"][0][:, 0]), np.array(model.embed.weight[top]), atol=1e-6
+        )
+    grads = gradients(model, steps=2)
+    assert np.isfinite(np.array(grads["step_emb"])).all()
+    assert np.abs(np.array(grads["step_emb"][0])).max() > 0
+    assert np.abs(np.array(grads["write_head.weight"])).max() == 0
+    with pytest.raises(ValueError, match="exactly one slot"):
+        slot_model(num_slots=3, slot_write="overwrite")
+
+
+def test_intervention_replaces_only_the_first_handoff_and_is_eval_only():
+    model = slot_model()
+    original, trace = model(TOKENS, steps=2, return_trace=True)
+    same = model(TOKENS, steps=2, slot_override=trace["slots"][0])
+    np.testing.assert_array_equal(np.array(original), np.array(same))
+    override = mx.broadcast_to(model.embed.weight[12], (2, 1, 32))
+    changed, modified = model(TOKENS, steps=2, slot_override=override, return_trace=True)
+    np.testing.assert_array_equal(np.array(trace["step_logits"][0]), np.array(modified["step_logits"][0]))
+    np.testing.assert_array_equal(np.array(modified["slots"][0]), np.array(override))
+    assert not np.array_equal(np.array(original), np.array(changed))
+    model.train()
+    with pytest.raises(ValueError, match="evaluation-only"):
+        model(TOKENS, slot_override=override)
+
+
+def test_overwrite_arms_have_matched_initialization_and_supervision():
+    from recurrent_lookup.sweep import OVERWRITE_RUNS
+
+    assert len(OVERWRITE_RUNS) == 6
+    reference = None
+    for variant, seed in OVERWRITE_RUNS[:3]:
+        cfg = build_config("smoke", variant, seed=seed)
+        assert cfg.prefix_loss_weight == 1.0
+        mx.random.seed(seed)
+        params = {k: np.array(v) for k, v in tree_flatten(RecurrentModel(model_config(cfg)).parameters())}
+        if reference is not None:
+            assert reference.keys() == params.keys()
+            assert all(np.array_equal(reference[k], params[k]) for k in params)
+        reference = params
+
+
+def test_slot_interventions_report_counts_and_full_write_oracles_agree():
+    data = tiny_data()
+    model = slot_model(slot_write="overwrite", slot_content="hard")
+    chains = data.eval_sets["two_hop_held_second"]
+    result = slot_interventions(model, data, chains, batch_size=10)
+    assert set(result) == {"normal", "cleared", "shuffled", "oracle_write", "oracle_exact"}
+    assert result["oracle_write"] == result["oracle_exact"]
+    assert all(row["n"] == len(chains) and 0 <= row["correct"] <= len(chains) for row in result.values())
 
 
 def test_state_is_fresh_each_step_unless_carried():
@@ -337,14 +405,15 @@ def test_slot_run_order_and_baseline_check():
     assert any(d.startswith("graph") for d in baseline_differences(base, smaller_graph))
 
 
-def test_train_evaluate_diagnose_and_report_a_slot_run(tmp_path):
+@pytest.mark.parametrize("variant", ["slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite"])
+def test_train_evaluate_diagnose_and_report_a_slot_run(tmp_path, variant):
     cfg = build_config(
-        "smoke", "slot_soft_prefix",
+        "smoke", variant,
         graph={"n_entities": 30, "n_relations": 8, "eval_size": 20},
         model={"d_model": 16, "n_heads": 2, "n_subkeys": 4, "d_key": 8, "top_k": 2, "lookup_heads": 2},
         steps=8, batch_size=8, warmup=2, eval_every=4, log_every=4,
     )
-    run_dir = tmp_path / "slot_soft_prefix_s0"
+    run_dir = tmp_path / f"{variant}_s0"
     final = run(cfg, run_dir)
     assert final["depth_unit"] == "steps" and final["eval_depth"] == 2
     assert set(final["accuracy_by_steps"]) == {"1", "2", "3", "4", "6", "8"}
@@ -365,4 +434,12 @@ def test_train_evaluate_diagnose_and_report_a_slot_run(tmp_path):
     assert "accuracy by number of outer steps" in report
     assert "what is in the slot after step 1" in report
     assert "Two-call ceiling" in report
-    assert "| slot_soft_prefix | 1 |" in report
+    assert "Slot interventions after step 1" in report
+    assert f"| {variant} | 1 |" in report
+
+    cfg.steps = 12
+    resumed = run(cfg, run_dir, resume=True)
+    assert resumed["steps"] == 12
+    assert [json.loads(line)["step"] for line in (run_dir / "metrics.jsonl").read_text().splitlines()] == [4, 8, 12]
+    _, metadata = mx.load(str(run_dir / "checkpoint.safetensors"), return_metadata=True)
+    assert metadata["step"] == "12"

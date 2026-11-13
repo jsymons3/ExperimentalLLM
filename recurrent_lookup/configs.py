@@ -25,12 +25,15 @@ VARIANTS = {
     "slot_soft": "C with one scratchpad slot written in token form",
     "slot_raw": "slot_soft, but the slot holds a raw vector",
     "slot_soft_prefix": "slot_soft, plus a loss that puts the bridge in step 1",
+    "slot_soft_overwrite": "bridge loss, full overwrite with soft entity content",
+    "slot_hard_overwrite": "bridge loss, full overwrite with one predicted entity",
     "slot_soft_k3": "slot_soft with three slots",
 }
 
 SLOT_KEYS = (
     "num_slots",
     "slot_content",
+    "slot_write",
     "outer_steps_train",
     "carry_hidden",
     "step_embedding",
@@ -42,6 +45,8 @@ SLOT_VARIANTS = {
     "slot_soft": {"num_slots": 1, "slot_content": "soft"},
     "slot_raw": {"num_slots": 1, "slot_content": "raw"},
     "slot_soft_prefix": {"num_slots": 1, "slot_content": "soft"},
+    "slot_soft_overwrite": {"num_slots": 1, "slot_content": "soft", "slot_write": "overwrite"},
+    "slot_hard_overwrite": {"num_slots": 1, "slot_content": "hard", "slot_write": "overwrite"},
     "slot_soft_k3": {"num_slots": 3, "slot_content": "soft"},
 }
 
@@ -89,7 +94,7 @@ def build_config(preset="smoke", variant="C", seed=0, graph=None, model=None, **
     fields.update(model or {})
     if variant in SLOT_VARIANTS:
         fields = {**SLOT_VARIANTS[variant], **fields}
-        if variant == "slot_soft_prefix":
+        if variant in ("slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite"):
             train.setdefault("prefix_loss_weight", 1.0)
     if fields.get("num_slots"):
         fields = {**SLOT_DEFAULTS, **fields}
