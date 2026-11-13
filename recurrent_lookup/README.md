@@ -328,13 +328,13 @@ python -m recurrent_lookup.report runs/slots runs/overnight
 
 ### Status of the scratchpad code
 
-- Tested on MLX's Linux CPU build at small size only. Old checkpoints
+- Initial verification used MLX's Linux CPU build at small size. Old checkpoints
   reproduce their stored accuracies exactly, retraining the original variants
   gives identical numbers, and the six-run sweep, the diagnostics and the
   report run end to end.
-- At full size, every scratchpad variant was built and took compiled training
-  steps at 2, 3 and 4 outer steps on a batch of 16. Nothing more was run at
-  full size, and nothing on an Apple GPU.
+- November 13 Mac verification: 54 tests pass on CPU and Apple GPU, including
+  checkpoint/resume for all three overwrite-comparison variants. Six full-size
+  runs completed on Apple GPU; the results are recorded below.
 
 ### A small-scale test, and what it suggests
 
@@ -430,6 +430,41 @@ accuracy, with independent fact recall and the two-call diagnostic alongside
 them. A falling training loss or a decodable bridge alone is insufficient.
 Both seeds use the same graph; they measure initialization/training variation,
 not generalization across independently generated graphs.
+
+### Completed full-size results, November 13
+
+All six runs completed 64,000 steps, using training code `670dd16`, MLX 0.32.4,
+and Apple GPU. The measured training/evaluation sweep finished in approximately
+6 hours 43 minutes. The machine-readable [results](results/overwrite-2026-11-13.json)
+include resolved configurations, both seeds, depth curves, exact diagnostic
+counts, and hashes of the original local final-result files.
+
+Means across seeds 0 and 1 (same graph):
+
+| Variant | Ordinary fact recall | Recall of facts excluded from chains | Unseen chains | Held-out second | Both held out |
+|---|---|---|---|---|---|
+| Gated soft (`slot_soft_prefix`) | 93.8% | 64.9% | 81.6% | 49.9% | 26.2% |
+| Full soft (`slot_soft_overwrite`) | 89.8% | 40.6% | 69.3% | 24.9% | 8.3% |
+| Full hard (`slot_hard_overwrite`) | 95.4% | 83.5% | 88.6% | 69.6% | 61.5% |
+
+The hard version wins in both seeds: held-out second-hop accuracy is 72.6%
+and 66.5%; both-held-out accuracy is 62.9% and 60.05%. Shuffling its scratchpad
+reduces held-out second-hop accuracy to 0% in each seed. On that split, among
+chains whose two facts are correctly recalled in separate one-step calls,
+native accuracy is 86.5% and 81.4%. Those subsets differ between models and
+should not be mistaken for a fixed-cohort comparison.
+
+The gated model's final write weight is about 0.995 in both seeds: its gate did
+not remain collapsed at full scale. Forcing full overwrite with soft content
+performs worse. The benefit is therefore not explained by removing the gate
+alone. Hard content improves individual fact recall as well as composition;
+the aggregate improvement cannot all be attributed to a better handoff.
+
+This supports discrete entity handoffs for supervised synthetic composition.
+Every arm receives bridge supervision, and these are two seeds on one graph.
+The experiment does not establish unsupervised emergence, natural-language
+transfer, separation of abstractions from facts, or an advantage of the lookup
+table over a dense model with the same scratchpad training.
 
 ## Files
 
