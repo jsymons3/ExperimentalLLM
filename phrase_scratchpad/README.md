@@ -142,12 +142,13 @@ settings close the ways around, and both are on by default.
   experiment used two). With two, a step is deep enough to redo both
   arithmetic operations from the question. Stories keep two, because reading
   a relation out of a sentence takes more depth than one lookup.
-- **Hiding the subject.** For half of the two-step training questions, the
-  subject (the first number, or the film's name) is hidden from the second
-  step on. Those questions can only be answered from what step 1 wrote.
-  Nothing is hidden at test time.
+- **Hiding the subject, on facts.** For half of the two-step fact questions
+  in training, the subject (the film's name) is hidden from the second step
+  on. Those questions can only be answered from what step 1 wrote. Nothing is
+  hidden at test time. Arithmetic is left alone: one pass per step already
+  makes its scratchpad necessary, and hiding slowed it in a small check.
 
-`--n-passes 2` and `--hide-subject-prob 0` turn them off.
+`--n-passes 2` and `--no-hide-subject` turn them off.
 
 ### Two additions used only in stage 3
 
@@ -227,9 +228,10 @@ Each run has one seed. Small gaps are noise.
 - **Stage 3 grades one-step questions at every step.** The other runs grade
   only the last step, as in the graph experiment. Without an intermediate
   answer for fact chains, nothing else would train the first step on facts.
-- **The control is also a test of its own.** `facts_unsupervised` hides the
-  subject too, so it shows whether that pressure alone makes the model write
-  the intermediate answer without ever being taught it.
+- **The control hides the subject too**, so it differs from stage 3 only in
+  lacking arithmetic and stories. It also shows whether that pressure alone
+  makes the model write the intermediate answer without being taught it. In
+  a small check it did not.
 - **Stories may not need the scratchpad.** A two-sentence story can be read
   and combined inside one step, and in a small check clearing the scratchpad
   made no difference. Their role is to give the core reasoning that needs no
@@ -306,10 +308,12 @@ Arithmetic, numbers up to 19, intermediate result taught, 6,000 steps.
   unseen chains and 32% on held-out 2nd, which is the floor. It answered most
   chains in a single step through the shortcut above and never wrote the
   bridge (1%).
-- **The full default combination was only smoke-tested.** Arithmetic with
-  one pass and hiding together, and the three-task run with the table off,
-  both train and evaluate, but neither was run long enough here to show
-  whether it learns.
+- **The small core can do arithmetic alone.** With the table switched off,
+  one-step sums reached 100%.
+- **Hiding the subject slowed arithmetic**: 30% on unseen chains with it
+  against 76% without, so it is applied to facts only.
+- **The three-task run was only smoke-tested.** It trains and evaluates, but
+  was not run long enough here to show whether it learns.
 
 ## Files
 

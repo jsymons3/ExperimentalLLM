@@ -29,6 +29,12 @@ ALL = ("maths", "clutrr", "facts")
 # one lookup; arithmetic and facts are kept to one so that a two-step
 # question cannot be answered inside a single step.
 TASK_PASSES = {"clutrr": 2}
+# Share of a task's two-step training questions whose subject is hidden after
+# the first step (scaled by ``hide_subject``). Facts need it: otherwise the
+# table learns to send a film straight to what it stores about its director,
+# and the scratchpad goes unread. Arithmetic does not: one pass per step
+# already makes its scratchpad necessary, and hiding slowed it in small checks.
+TASK_HIDE = {"facts": 0.5}
 # Share of ``batch_size`` each task gets. Family stories are several times
 # longer than the other questions and there are far fewer of them, so a
 # quarter-size batch costs about the same and still shows each story often.
@@ -63,9 +69,10 @@ class RunConfig:
     # the last. Used where no intermediate answer is taught, so that the
     # first step still learns to answer one-step questions.
     one_hop_every_step: bool = False
-    # Share of two-step training questions whose subject is hidden after the
-    # first step, so that they can only be answered through the scratchpad.
-    hide_subject_prob: float = 0.5
+    # Whether to hide the subject of some two-step training questions after
+    # the first step, so that they can only be answered through the
+    # scratchpad. TASK_HIDE says which tasks and how often.
+    hide_subject: bool = True
     # Tasks trained with the lookup table switched off. Only sensible for
     # questions that need no stored facts, and with a dense core (core_ff).
     table_off: tuple = ()
@@ -117,6 +124,7 @@ def build_run(cfg: RunConfig):
     for task in suite.tasks:
         # None means the model's own setting.
         task.n_passes = TASK_PASSES.get(task.name) if cfg.model.get("scratchpad", True) else None
+        task.hide_prob = TASK_HIDE.get(task.name, 0.0) if cfg.hide_subject else 0.0
     model_cfg = PhraseConfig(
         vocab_size=len(suite.vocab),
         n_output=suite.n_output,

@@ -39,7 +39,7 @@ MODEL_FLAGS = (
 )
 TRAIN_FLAGS = (
     "steps", "batch_size", "two_hop_frac", "lr", "warmup", "weight_decay",
-    "table_weight_decay", "grad_clip", "bridge_loss_weight", "hide_subject_prob", "table_off",
+    "table_weight_decay", "grad_clip", "bridge_loss_weight", "table_off",
     "eval_every", "log_every", "eval_size",
 )
 
@@ -91,8 +91,8 @@ def parse_args(argv=None):
         help="tasks trained with the lookup table switched off (needs --core-ff)",
     )
     t.add_argument(
-        "--hide-subject-prob", type=float,
-        help="share of two-step training questions whose subject is hidden after step one",
+        "--no-hide-subject", action="store_true",
+        help="never hide a fact question's subject after step one",
     )
     t.add_argument("--eval-every", type=int)
     t.add_argument("--log-every", type=int)
@@ -111,9 +111,12 @@ def config_from_args(args):
         overrides["facts"] = {"n_people": args.n_people}
     if args.max_stories is not None:
         overrides["clutrr"] = {"max_stories": args.max_stories}
+    train = given(TRAIN_FLAGS)
+    if args.no_hide_subject:
+        train["hide_subject"] = False
     return build_config(
         args.variant, args.preset, args.seed,
-        model=given(MODEL_FLAGS), task_overrides=overrides, **given(TRAIN_FLAGS),
+        model=given(MODEL_FLAGS), task_overrides=overrides, **train,
     )
 
 
@@ -175,8 +178,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         task are also taught their intermediate answer at step 1. With
         ``one_hop_every_step`` a one-step question is graded at every step.
         Questions of a ``table_off`` task run with the lookup switched off.
-        With ``hide_subject_prob`` some two-step questions lose their subject
-        after the first step.
+        Some two-step fact questions lose their subject after the first step.
         """
 
         def task_loss(task, model, question, answer, bridge, teach_bridge, every_step, table_on, hide):
@@ -185,7 +187,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
                 steps=steps,
                 return_trace=True,
                 table_on=table_on if cfg.table_off else None,
-                hide_prefix=hide if cfg.hide_subject_prob else None,
+                hide_prefix=hide if task.hide_prob else None,
                 n_passes=task.n_passes,
             )
             earlier = trace["step_logits"][:-1]
@@ -233,7 +235,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
             teach = items.chain & (task.name in cfg.supervised)
             every = ~items.chain & cfg.one_hop_every_step
             table_on = np.full(len(items), task.name not in cfg.table_off)
-            hidden = rng.random(len(items)) < cfg.hide_subject_prob
+            hidden = rng.random(len(items)) < task.hide_prob
             arrays += [
                 items.question,
                 items.answer,
