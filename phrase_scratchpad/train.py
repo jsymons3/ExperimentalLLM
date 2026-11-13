@@ -39,8 +39,8 @@ MODEL_FLAGS = (
 )
 TRAIN_FLAGS = (
     "steps", "batch_size", "two_hop_frac", "lr", "warmup", "weight_decay",
-    "table_weight_decay", "grad_clip", "bridge_loss_weight", "eval_every",
-    "log_every", "eval_size",
+    "table_weight_decay", "grad_clip", "bridge_loss_weight", "hide_subject_prob",
+    "eval_every", "log_every", "eval_size",
 )
 
 
@@ -86,6 +86,10 @@ def parse_args(argv=None):
     t.add_argument("--table-weight-decay", type=float)
     t.add_argument("--grad-clip", type=float)
     t.add_argument("--bridge-loss-weight", type=float)
+    t.add_argument(
+        "--hide-subject-prob", type=float,
+        help="share of two-step training questions whose subject is hidden after step one",
+    )
     t.add_argument("--eval-every", type=int)
     t.add_argument("--log-every", type=int)
     t.add_argument("--eval-size", type=int)
@@ -167,14 +171,17 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         task are also taught their intermediate answer at step 1. With
         ``one_hop_every_step`` a one-step question is graded at every step.
         Questions of a ``table_off`` task run with the lookup switched off.
+        With ``hide_subject_prob`` some two-step questions lose their subject
+        after the first step.
         """
 
-        def task_loss(model, question, answer, bridge, teach_bridge, every_step, table_on):
+        def task_loss(model, question, answer, bridge, teach_bridge, every_step, table_on, hide):
             logits, trace = model(
                 question,
                 steps=steps,
                 return_trace=True,
                 table_on=table_on if cfg.table_off else None,
+                hide_prefix=hide if cfg.hide_subject_prob else None,
             )
             earlier = trace["step_logits"][:-1]
             share = (1 - every_step) + every_step / (len(earlier) + 1)
@@ -191,11 +198,11 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
 
         def loss_fn(model, *batch):
             # Each task's questions have their own length, so each task is a
-            # separate forward pass: six arrays per task. Tasks count equally,
-            # whatever their batch sizes.
+            # separate forward pass: seven arrays per task. Tasks count
+            # equally, whatever their batch sizes.
             total = mx.array(0.0)
             for i, size in enumerate(sizes):
-                total = total + task_loss(model, *batch[6 * i : 6 * i + 6]) / size
+                total = total + task_loss(model, *batch[7 * i : 7 * i + 7]) / size
             return total / len(sizes)
 
         loss_and_grad = nn.value_and_grad(model, loss_fn)
@@ -221,6 +228,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
             teach = items.chain & (task.name in cfg.supervised)
             every = ~items.chain & cfg.one_hop_every_step
             table_on = np.full(len(items), task.name not in cfg.table_off)
+            hidden = rng.random(len(items)) < cfg.hide_subject_prob
             arrays += [
                 items.question,
                 items.answer,
@@ -228,6 +236,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
                 teach.astype(np.float32),
                 every.astype(np.float32),
                 table_on.astype(np.float32),
+                (items.subject_len * hidden).astype(np.int32),
             ]
         return [mx.array(a) for a in arrays]
 

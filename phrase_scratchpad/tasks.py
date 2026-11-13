@@ -55,6 +55,14 @@ class Items:
     # and the guessing baseline.
     first: np.ndarray = None  # (n, L)
     suffix: np.ndarray = None  # (n, P)
+    # How many tokens at the start of a two-step question are its subject,
+    # which training may hide after the first step. 0 where that is not
+    # meaningful.
+    subject_len: np.ndarray = None  # (n,)
+
+    def __post_init__(self):
+        if self.subject_len is None:
+            self.subject_len = np.zeros(len(self.question), dtype=np.int32)
 
     def __len__(self):
         return len(self.question)
@@ -184,6 +192,7 @@ class Task:
             chain=np.ones(len(ids), dtype=bool),
             first=compact(self.subject[first], self.suffix[first], blank),
             suffix=self.suffix[second],
+            subject_len=(self.subject[first] != PAD).sum(axis=1).astype(np.int32),
         )
 
     @property

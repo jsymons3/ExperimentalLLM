@@ -58,6 +58,9 @@ class RunConfig:
     # the last. Used where no intermediate answer is taught, so that the
     # first step still learns to answer one-step questions.
     one_hop_every_step: bool = False
+    # Share of two-step training questions whose subject is hidden after the
+    # first step, so that they can only be answered through the scratchpad.
+    hide_subject_prob: float = 0.0
     # Tasks trained with the lookup table switched off. Only sensible for
     # questions that need no stored facts, and with a dense core (core_ff).
     table_off: tuple = ()

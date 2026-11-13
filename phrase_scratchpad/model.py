@@ -207,7 +207,13 @@ class PhraseModel(nn.Module):
         return soft + mx.stop_gradient(hard - soft)
 
     def __call__(
-        self, question, steps=None, return_trace=False, slot_override=None, table_on=None
+        self,
+        question,
+        steps=None,
+        return_trace=False,
+        slot_override=None,
+        table_on=None,
+        hide_prefix=None,
     ):
         """question: (B, L) token ids, padded at the end. Returns logits
         (B, K, n_output) for the answer's K tokens.
@@ -217,6 +223,9 @@ class PhraseModel(nn.Module):
         retrieved by every block application. ``slot_override`` (B, K, d)
         replaces the scratchpad that step 2 reads; it is for evaluation only.
         ``table_on`` (B,) of 0/1 switches the lookup off for some questions.
+        ``hide_prefix`` (B,) hides that many leading question tokens from the
+        second step on, so those questions can only be answered through the
+        scratchpad. It is a training aid.
         """
         cfg = self.cfg
         B, L = question.shape
@@ -231,8 +240,13 @@ class PhraseModel(nn.Module):
             [(question != PAD).astype(mx.float32), mx.ones((B, n_extra))], axis=1
         )
         size = L + n_extra
+        causal = mx.triu(mx.full((size, size), -1e9), k=1)
         # Causal order, and nothing attends to padded question positions.
-        mask = mx.triu(mx.full((size, size), -1e9), k=1) + (1 - valid)[:, None, None, :] * -1e9
+        mask = causal + (1 - valid)[:, None, None, :] * -1e9
+        if hide_prefix is not None:
+            shown = (mx.arange(size)[None, :] >= hide_prefix[:, None]).astype(mx.float32)
+            later_valid = valid * shown
+            later_mask = causal + (1 - later_valid)[:, None, None, :] * -1e9
 
         trace = {"step_logits": [], "slots": [], "retrieved": []}
         slots = mx.broadcast_to(self.slot_empty, (B, K, d)) if cfg.scratchpad else None
@@ -243,8 +257,11 @@ class PhraseModel(nn.Module):
             else:
                 parts = [asked, mx.broadcast_to(self.work_emb, (B, K, d))]
             h = mx.concatenate(parts, axis=1)
+            hide = hide_prefix is not None and t > 0
             for _ in range(cfg.n_passes):
-                h, index = self.block(h, mask, valid, table_on)
+                h, index = self.block(
+                    h, later_mask if hide else mask, later_valid if hide else valid, table_on
+                )
                 trace["retrieved"].append(index)
             logits = self.readout(h[:, -K:])
             trace["step_logits"].append(logits)

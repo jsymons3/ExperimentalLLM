@@ -143,3 +143,26 @@ def test_other_options_train():
             optimizer.update(model, nn.value_and_grad(model, loss_fn)(model)[1])
         assert loss_fn(model).item() < before, option
         assert count_parameters(model)["total"] > 0
+
+
+def test_hidden_subject_can_only_matter_through_the_scratchpad():
+    model = make()
+    hide = mx.array([2, 0])  # hide the first two tokens of question 0 from step 2 on
+    logits, trace = model(QUESTION, steps=2, return_trace=True, hide_prefix=hide)
+    plain, plain_trace = model(QUESTION, steps=2, return_trace=True)
+    # Step 1 is unaffected, and so is the question with nothing hidden.
+    np.testing.assert_allclose(
+        np.array(trace["step_logits"][0]), np.array(plain_trace["step_logits"][0]), atol=1e-5
+    )
+    np.testing.assert_allclose(np.array(logits[1]), np.array(plain[1]), atol=1e-5)
+    assert not np.allclose(np.array(logits[0]), np.array(plain[0]), atol=1e-4)
+
+    # With its subject hidden, changing the subject changes the final answer
+    # only if it changes what step 1 wrote. Fix the scratchpad and it cannot.
+    other = mx.array([[9, 10, 21, 22, 0, 0], [7, 8, 9, 23, 24, 0]])
+    fixed = trace["slots"][0]
+    a = model(QUESTION, steps=2, slot_override=fixed, hide_prefix=hide)
+    b = model(other, steps=2, slot_override=fixed, hide_prefix=hide)
+    np.testing.assert_allclose(np.array(a[0]), np.array(b[0]), atol=1e-5)
+    c = model(other, steps=2, slot_override=fixed)
+    assert not np.allclose(np.array(a[0]), np.array(c[0]), atol=1e-4)
