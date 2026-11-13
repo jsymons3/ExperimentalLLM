@@ -309,7 +309,8 @@ Arithmetic, numbers up to 19, intermediate result taught, 6,000 steps.
   chains in a single step through the shortcut above and never wrote the
   bridge (1%).
 - **The small core can do arithmetic alone.** With the table switched off,
-  one-step sums reached 100%.
+  one-step sums reached 100% and unseen chains 38% by step 5,000, still
+  rising. That is slower than with the table (76% at 6,000 steps).
 - **Hiding the subject slowed arithmetic**: 30% on unseen chains with it
   against 76% without, so it is applied to facts only.
 - **The three-task run was only smoke-tested.** It trains and evaluates, but
