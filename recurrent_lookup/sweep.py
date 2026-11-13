@@ -61,7 +61,11 @@ OVERWRITE_RUNS = [
     for seed in (0, 1)
     for variant in ("slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite")
 ]
-RUN_SETS = {"overnight": RUNS, "slots": SLOT_RUNS, "overwrite": OVERWRITE_RUNS}
+FOLLOWUP_RUNS = [("slot_hard_no_bridge", 0), ("dense_hard", 0)]
+RUN_SETS = {
+    "overnight": RUNS, "slots": SLOT_RUNS,
+    "overwrite": OVERWRITE_RUNS, "followups": FOLLOWUP_RUNS,
+}
 EVALS_PER_RUN = 40
 
 # Settings that must match the baseline run for results to be comparable.

@@ -27,6 +27,8 @@ VARIANTS = {
     "slot_soft_prefix": "slot_soft, plus a loss that puts the bridge in step 1",
     "slot_soft_overwrite": "bridge loss, full overwrite with soft entity content",
     "slot_hard_overwrite": "bridge loss, full overwrite with one predicted entity",
+    "slot_hard_no_bridge": "hard full overwrite, without intermediate-answer supervision",
+    "dense_hard": "parameter-matched dense block, supervised hard full overwrite",
     "slot_soft_k3": "slot_soft with three slots",
 }
 
@@ -47,6 +49,8 @@ SLOT_VARIANTS = {
     "slot_soft_prefix": {"num_slots": 1, "slot_content": "soft"},
     "slot_soft_overwrite": {"num_slots": 1, "slot_content": "soft", "slot_write": "overwrite"},
     "slot_hard_overwrite": {"num_slots": 1, "slot_content": "hard", "slot_write": "overwrite"},
+    "slot_hard_no_bridge": {"num_slots": 1, "slot_content": "hard", "slot_write": "overwrite"},
+    "dense_hard": {"num_slots": 1, "slot_content": "hard", "slot_write": "overwrite"},
     "slot_soft_k3": {"num_slots": 3, "slot_content": "soft"},
 }
 
@@ -94,7 +98,7 @@ def build_config(preset="smoke", variant="C", seed=0, graph=None, model=None, **
     fields.update(model or {})
     if variant in SLOT_VARIANTS:
         fields = {**SLOT_VARIANTS[variant], **fields}
-        if variant in ("slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite"):
+        if variant in ("slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite", "dense_hard"):
             train.setdefault("prefix_loss_weight", 1.0)
     if fields.get("num_slots"):
         fields = {**SLOT_DEFAULTS, **fields}
@@ -109,7 +113,7 @@ def build_config(preset="smoke", variant="C", seed=0, graph=None, model=None, **
     )
     if variant == "A":
         fields.update(ff="dense", d_ff=4 * reference.d_model)
-    elif variant == "B":
+    elif variant in ("B", "dense_hard"):
         fields.update(ff="dense", d_ff=matched_dense_width(reference))
     elif variant == "D":
         fields.update(lookup_passes="first")

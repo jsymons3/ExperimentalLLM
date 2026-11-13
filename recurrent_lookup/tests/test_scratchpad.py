@@ -275,6 +275,23 @@ def test_variant_configs():
         build_config("smoke", "C", prefix_loss_weight=1.0)
 
 
+def test_named_followups_match_the_requested_flag_configurations():
+    from recurrent_lookup.train import config_from_args, parse_args
+
+    commands = {
+        "slot_hard_no_bridge": "--variant slot_hard_overwrite --prefix-loss-weight 0",
+        "dense_hard": "--variant B --num-slots 1 --slot-content hard --slot-write overwrite --prefix-loss-weight 1",
+    }
+    for variant, flags in commands.items():
+        expected = asdict(config_from_args(parse_args(
+            ("--preset full --steps 64000 --out unused " + flags).split()
+        )))
+        actual = asdict(build_config("full", variant, steps=64000))
+        expected.pop("variant")
+        actual.pop("variant")
+        assert actual == expected
+
+
 def test_saved_configs_load_old_and_new(tmp_path):
     new = build_config("smoke", "slot_soft", steps=10)
     saved = asdict(new)
@@ -405,7 +422,10 @@ def test_slot_run_order_and_baseline_check():
     assert any(d.startswith("graph") for d in baseline_differences(base, smaller_graph))
 
 
-@pytest.mark.parametrize("variant", ["slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite"])
+@pytest.mark.parametrize("variant", [
+    "slot_soft_prefix", "slot_soft_overwrite", "slot_hard_overwrite",
+    "slot_hard_no_bridge", "dense_hard",
+])
 def test_train_evaluate_diagnose_and_report_a_slot_run(tmp_path, variant):
     cfg = build_config(
         "smoke", variant,
@@ -423,7 +443,8 @@ def test_train_evaluate_diagnose_and_report_a_slot_run(tmp_path, variant):
     assert "warmup" in json.loads((run_dir / "config.json").read_text())["lr_schedule"]
 
     cfg2, data, model, step = load_run(run_dir)
-    assert step == 8 and model.cfg.num_slots == 1 and cfg2.prefix_loss_weight == 1.0
+    expected_prefix_loss = 0.0 if variant == "slot_hard_no_bridge" else 1.0
+    assert step == 8 and model.cfg.num_slots == 1 and cfg2.prefix_loss_weight == expected_prefix_loss
 
     result = diagnose_run(run_dir)
     assert result["reproduces_final"]["status"] == "identical"

@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from recurrent_lookup.report import build_report
+from recurrent_lookup.report import build_report, load_runs
 from recurrent_lookup.sweep import EVALS_PER_RUN, RUNS, plan_steps
 from recurrent_lookup.sweep import main as sweep_main
 
@@ -82,3 +82,12 @@ def test_report_from_partial_results(tmp_path):
     assert "| C | held_second | 0.800 (0.800-0.800) | 0.100 (0.100-0.100) |" in text
     assert "lookup every pass (C): 0.600" in text
     assert "(B)" not in text  # B has not run, so no line about it
+
+
+def test_named_followups_remain_distinct_from_their_original_variants(tmp_path):
+    variants = ("B", "dense_hard", "slot_hard_overwrite", "slot_hard_no_bridge")
+    for variant in variants:
+        run_dir = tmp_path / f"{variant}_s0"
+        run_dir.mkdir()
+        (run_dir / "final.json").write_text(json.dumps(fake_final(variant, 0, 0.5, False)))
+    assert set(load_runs(tmp_path)) == set(variants)

@@ -466,6 +466,40 @@ The experiment does not establish unsupervised emergence, natural-language
 transfer, separation of abstractions from facts, or an advantage of the lookup
 table over a dense model with the same scratchpad training.
 
+### Follow-up controls
+
+Two additional seed-0 runs keep the full graph, 64,000 updates, optimizer,
+batch size, and scratchpad depths used above:
+
+| Variant | Change from supervised hard overwrite |
+|---|---|
+| `slot_hard_no_bridge` | Remove the intermediate-answer loss (`prefix_loss_weight=0`) |
+| `dense_hard` | Replace the lookup with run B's parameter-matched dense MLP; retain the bridge loss |
+
+These names resolve to the same configurations as `slot_hard_overwrite
+--prefix-loss-weight 0` and `B --num-slots 1 --slot-content hard --slot-write
+overwrite --prefix-loss-weight 1`, respectively. Dedicated variant names keep
+the combined report from deduplicating them against the original experiments.
+The models have 4,970,498 and 4,970,562 parameters. Parameter matching does not
+imply equal computation or wall time.
+
+Start or resume both, sequentially:
+
+```bash
+bash scripts/run_scratchpad_followups.sh
+```
+
+The launcher times both configurations, writes the fixed-step plan, uses
+`caffeinate`, and saves checkpoints every five minutes. Outputs are under
+`runs/followup-2026-11-13/`; `followups.log` is the shared progress log.
+When both runs finish, `report.md` also includes the original overwrite runs.
+Keep power connected and the lid open. Seed 1 is not included in this screen.
+
+Compare independent fact recall and the existing both-facts-known diagnostic
+alongside held-out composition. The known-fact subsets can differ between
+models. If the no-bridge-loss run fails, it establishes a limitation of this
+training setup, not that intermediate supervision is fundamentally required.
+
 ## Files
 
 | File | Contents |
