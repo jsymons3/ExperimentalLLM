@@ -1,7 +1,11 @@
-"""The three tasks: arithmetic, real-name facts, and both together.
+"""Arithmetic and real-name facts, and how several tasks share one model.
 
-Every task has the same shape, so the model and the training loop do not know
-which one they are running.
+Every task presents the same things (questions, answers, an intermediate
+answer for two-step questions, and named test splits), so the model and the
+training loop do not know which one they are running. The family-story task
+is in ``clutrr.py``.
+
+Arithmetic and facts are both built from one-step questions:
 
 * A *fact* is a one-step question: a subject of up to K tokens, a suffix of up
   to P tokens, and an answer of up to K tokens.
@@ -39,21 +43,30 @@ CHAIN_GROUPS = ("chain_unseen", "chain_held_first", "chain_held_second", "chain_
 
 @dataclass
 class Items:
-    """A set of questions as token arrays. One-step items have an empty
-    second suffix and an empty bridge."""
+    """A set of questions as token arrays."""
 
-    subject: np.ndarray  # (n, K)
-    suffix1: np.ndarray  # (n, P)
-    suffix2: np.ndarray  # (n, P)
-    bridge: np.ndarray  # (n, K)
+    question: np.ndarray  # (n, L), padded at the end
     answer: np.ndarray  # (n, K)
+    bridge: np.ndarray  # (n, K): the intermediate answer; padding if none
+    chain: np.ndarray  # (n,) bool: True for two-step questions
+    # Where a task is built from one-step questions: the one-step question
+    # for the first hop, and the question's last suffix (the relation or
+    # operation that produces the answer). Used by the two-call diagnostic
+    # and the guessing baseline.
+    first: np.ndarray = None  # (n, L)
+    suffix: np.ndarray = None  # (n, P)
 
     def __len__(self):
-        return len(self.subject)
+        return len(self.question)
 
-    @property
-    def is_chain(self):
-        return (self.suffix2 != PAD).any(axis=1)
+
+def join(a, b):
+    """Two sets of items, one after the other."""
+
+    def cat(x, y):
+        return None if x is None or y is None else np.concatenate([x, y])
+
+    return Items(*(cat(getattr(a, f), getattr(b, f)) for f in a.__dataclass_fields__))
 
 
 def compact(*parts):
@@ -145,21 +158,32 @@ class Task:
 
     # -- items ------------------------------------------------------------
 
+    @property
+    def question_len(self):
+        return self.answer_len + 2 * self.suffix_len
+
     def fact_items(self, ids):
-        blank_suffix = np.zeros((len(ids), self.suffix_len), dtype=np.int32)
-        blank_bridge = np.zeros((len(ids), self.answer_len), dtype=np.int32)
+        n = len(ids)
+        blank = np.zeros((n, self.suffix_len), dtype=np.int32)
         return Items(
-            self.subject[ids], self.suffix[ids], blank_suffix, blank_bridge, self.answer[ids]
+            question=compact(self.subject[ids], self.suffix[ids], blank),
+            answer=self.answer[ids],
+            bridge=np.zeros((n, self.answer_len), dtype=np.int32),
+            chain=np.zeros(n, dtype=bool),
+            first=compact(self.subject[ids], self.suffix[ids], blank),
+            suffix=self.suffix[ids],
         )
 
     def chain_items(self, ids):
         first, second = self.chain_first[ids], self.chain_second[ids]
+        blank = np.zeros((len(ids), self.suffix_len), dtype=np.int32)
         return Items(
-            self.subject[first],
-            self.suffix[first],
-            self.suffix[second],
-            self.answer[first],
-            self.answer[second],
+            question=compact(self.subject[first], self.suffix[first], self.suffix[second]),
+            answer=self.answer[second],
+            bridge=self.answer[first],
+            chain=np.ones(len(ids), dtype=bool),
+            first=compact(self.subject[first], self.suffix[first], blank),
+            suffix=self.suffix[second],
         )
 
     @property
@@ -173,40 +197,33 @@ class Task:
         """Random training questions: every fact, and the training chains."""
         one = self.fact_items(rng.integers(0, len(self.subject), n_one))
         picked = self.train_chains[rng.integers(0, len(self.train_chains), n_chain)]
-        chain = self.chain_items(picked)
-        return Items(*(np.concatenate(pair) for pair in zip(_fields(one), _fields(chain))))
-
-    # -- questions --------------------------------------------------------
-
-    @property
-    def question_len(self):
-        return self.answer_len + 2 * self.suffix_len
-
-    def questions(self, items):
-        """The full question for each item, padded to question_len."""
-        return compact(items.subject, items.suffix1, items.suffix2)
-
-    def first_questions(self, items):
-        """The one-step question for the first hop of each chain."""
-        return widen(compact(items.subject, items.suffix1), self.question_len)
+        return join(one, self.chain_items(picked))
 
     def second_questions(self, bridge, items):
         """The one-step question for the second hop, about a given bridge."""
-        return widen(compact(bridge, items.suffix2), self.question_len)
+        return widen(compact(bridge, items.suffix), self.question_len)
+
+    def rebased(self, remap, answer_len):
+        """A copy using another vocabulary's token ids and a wider answer."""
+        clone = object.__new__(type(self))
+        clone.__dict__.update(self.__dict__)
+        clone.subject = widen(remap[self.subject], answer_len)
+        clone.answer = widen(remap[self.answer], answer_len)
+        clone.suffix = remap[self.suffix]
+        clone.answer_len = answer_len
+        return clone
 
     def majority_baseline(self, items):
         """Accuracy of always giving the commonest training answer for the
-        question's final suffix. Shows how far guessing gets."""
-        final = np.where(items.is_chain[:, None], items.suffix2, items.suffix1)
-        best = {}
+        question's last suffix. Shows how far guessing gets."""
         keys, inverse = np.unique(self.suffix, axis=0, return_inverse=True)
         inverse = inverse.reshape(-1)
+        best = {}
         for k, key in enumerate(keys):
             answers, counts = np.unique(self.answer[inverse == k], axis=0, return_counts=True)
             best[key.tobytes()] = answers[counts.argmax()]
-        guesses = np.stack(
-            [best.get(row.tobytes(), np.zeros(self.answer_len, np.int32)) for row in final]
-        )
+        nothing = np.zeros(self.answer_len, dtype=np.int32)
+        guesses = np.stack([best.get(row.tobytes(), nothing) for row in items.suffix])
         return float((guesses == items.answer).all(axis=1).mean())
 
     def decode(self, tokens):
@@ -227,10 +244,6 @@ class Task:
         }
         out.update({f"all_{name}": size for name, size in self.group_sizes.items()})
         return out
-
-
-def _fields(items):
-    return (items.subject, items.suffix1, items.suffix2, items.bridge, items.answer)
 
 
 # -- arithmetic -------------------------------------------------------------
@@ -352,10 +365,11 @@ def facts_task(
 class Suite:
     """The task or tasks one model is trained on.
 
-    Each task keeps its own facts, chains and splits. With more than one task
-    the token ids are moved into a joint vocabulary (answer tokens first, and
-    no token shared between tasks) and all arrays are padded to the widest
-    task, so one model can read and write every task's questions.
+    Each task keeps its own questions and splits. With more than one task the
+    token ids are moved into a joint vocabulary (answer tokens first, and no
+    token shared between tasks) and answers are padded to the longest task's,
+    so one model can read and write every task. Questions keep their own
+    length per task.
     """
 
     def __init__(self, tasks):
@@ -370,7 +384,6 @@ class Suite:
                 others += [f"{t.name}:{w}" for w in t.vocab[t.n_output :]]
             self.vocab, self.n_output = answers + others, len(answers)
             answer_len = max(t.answer_len for t in tasks)
-            suffix_len = max(t.suffix_len for t in tasks)
             self.tasks = []
             next_answer, next_other = 1, self.n_output
             for t in tasks:
@@ -379,17 +392,11 @@ class Suite:
                 remap[1 : t.n_output] = next_answer + np.arange(n_answers)
                 remap[t.n_output :] = next_other + np.arange(n_others)
                 next_answer, next_other = next_answer + n_answers, next_other + n_others
-                clone = object.__new__(Task)
-                clone.__dict__.update(t.__dict__)
+                clone = t.rebased(remap, answer_len)
                 clone.vocab, clone.n_output = self.vocab, self.n_output
-                clone.subject = widen(remap[t.subject], answer_len)
-                clone.answer = widen(remap[t.answer], answer_len)
-                clone.suffix = widen(remap[t.suffix], suffix_len)
-                clone.answer_len, clone.suffix_len = answer_len, suffix_len
                 self.tasks.append(clone)
         self.answer_len = self.tasks[0].answer_len
-        self.suffix_len = self.tasks[0].suffix_len
-        self.question_len = self.tasks[0].question_len
+        self.question_len = max(t.question_len for t in self.tasks)
 
     def summary(self):
         return {
@@ -403,18 +410,20 @@ class Suite:
 
 PRESETS = {
     # Small enough for tests and a quick look.
-    "smoke": {"maths": {"max_operand": 9}, "facts": {"n_people": 60}},
-    "pilot": {"maths": {"max_operand": 39}, "facts": {"n_people": 400}},
-    "full": {"maths": {"max_operand": 99}, "facts": {"n_people": 1500}},
+    "smoke": {"maths": {"max_operand": 9}, "facts": {"n_people": 60}, "clutrr": {"max_stories": 300}},
+    "pilot": {"maths": {"max_operand": 39}, "facts": {"n_people": 400}, "clutrr": {"max_stories": 2000}},
+    "full": {"maths": {"max_operand": 99}, "facts": {"n_people": 1500}, "clutrr": {}},
 }
-MAKERS = {"maths": maths_task, "facts": facts_task}
 
 
 def build_suite(names, preset="full", eval_size=2000, seed=0, overrides=None):
     """The tasks named, built at a preset size. ``overrides`` maps a task name
     to keyword arguments that replace the preset's."""
+    from .clutrr import clutrr_task
+
+    makers = {"maths": maths_task, "facts": facts_task, "clutrr": clutrr_task}
     tasks = []
     for name in names:
         kwargs = {**PRESETS[preset][name], **(overrides or {}).get(name, {})}
-        tasks.append(MAKERS[name](eval_size=eval_size, seed=seed, **kwargs))
+        tasks.append(makers[name](eval_size=eval_size, seed=seed, **kwargs))
     return Suite(tasks)

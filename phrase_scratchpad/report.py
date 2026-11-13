@@ -21,6 +21,13 @@ SPLITS = [
     ("chain_held_both", "held-out both"),
 ]
 MAIN = "chain_held_second"
+LABELS = dict(SPLITS)
+
+
+def hardest(entry):
+    """The hardest test split a task has: held-out second step where the
+    task has stored facts to hold out, otherwise unseen two-step questions."""
+    return MAIN if MAIN in entry["accuracy"] else "chain_unseen"
 
 
 def pct(value):
@@ -67,20 +74,21 @@ def build_report(root):
 
     rows = []
     for v, name, entry in rows_by_task:
-        report = (entry.get("scratchpad") or {}).get(MAIN)
+        split = hardest(entry)
+        report = (entry.get("scratchpad") or {}).get(split)
         if report:
             i = report["interventions"]
             rows.append(
-                [v, name, pct(report["bridge_written"])]
+                [v, name, LABELS[split], pct(report["bridge_written"])]
                 + [pct(i[k]) for k in ("normal", "cleared", "shuffled", "true_bridge")]
             )
     if rows:
         out += [
-            "## Is the scratchpad used? (held-out 2nd chains)",
+            "## Is the scratchpad used?",
             "",
             table(
-                ["run", "task", "bridge written at step 1", "normal", "scratchpad cleared",
-                 "scratchpad shuffled", "true bridge supplied"],
+                ["run", "task", "questions", "bridge written at step 1", "normal",
+                 "scratchpad cleared", "scratchpad shuffled", "true bridge supplied"],
                 rows,
             ),
             "",
@@ -124,7 +132,7 @@ def build_report(root):
         [v, name, "on" if entry["trained_with_table"] else "off"]
         + [
             f"{pct(entry['accuracy_table_on'].get(s))} / {pct(entry['accuracy_table_off'].get(s))}"
-            for s in ("one_hop", "chain_unseen", MAIN)
+            for s in ("one_hop", "chain_unseen")
         ]
         for v, name, entry in rows_by_task
     ]
@@ -132,26 +140,26 @@ def build_report(root):
         "## What depends on the table",
         "",
         table(
-            ["run", "task", "trained with table", "1-step: on / off", "unseen chains: on / off",
-             "held-out 2nd: on / off"],
+            ["run", "task", "trained with table", "1-step: on / off", "unseen chains: on / off"],
             rows,
         ),
         "",
         "Each cell is accuracy with the lookup table on, then off. A split "
-        "between a reasoning core and a fact table would show arithmetic "
-        "surviving with the table off and facts collapsing.",
+        "between a reasoning core and a fact table would show arithmetic and "
+        "the story questions surviving with the table off, and facts collapsing.",
         "",
     ]
 
     steps = sorted({int(d) for _, _, e in rows_by_task for d in e["accuracy_by_steps"]})
     rows = [
-        [v, name] + [pct(entry["accuracy_by_steps"].get(str(d), {}).get(MAIN)) for d in steps]
+        [v, name, LABELS[hardest(entry)]]
+        + [pct(entry["accuracy_by_steps"].get(str(d), {}).get(hardest(entry))) for d in steps]
         for v, name, entry in rows_by_task
     ]
     out += [
-        "## Held-out 2nd accuracy by number of outer steps at test time",
+        "## Accuracy by number of outer steps at test time",
         "",
-        table(["run", "task"] + [f"{d} step" + "s" * (d != 1) for d in steps], rows),
+        table(["run", "task", "questions"] + [f"{d} step" + "s" * (d != 1) for d in steps], rows),
         "",
     ]
 
@@ -171,6 +179,14 @@ def build_report(root):
 
     line("Stage 1, arithmetic with the intermediate result taught: held-out 2nd {}.", acc("maths", "maths"))
     line("Arithmetic without a scratchpad: held-out 2nd {}.", acc("maths_plain", "maths"))
+    line(
+        "Stage 1, family stories with the intermediate link taught: unseen stories {}.",
+        acc("clutrr", "clutrr", "chain_unseen"),
+    )
+    line(
+        "Family stories without a scratchpad: unseen stories {}.",
+        acc("clutrr_plain", "clutrr", "chain_unseen"),
+    )
     line("Stage 2, facts with the intermediate answer taught: held-out 2nd {}.", acc("facts", "facts"))
     line("Facts without a scratchpad: held-out 2nd {}.", acc("facts_plain", "facts"))
     line(
@@ -180,11 +196,14 @@ def build_report(root):
         acc("facts_unsupervised", "facts"),
         written("facts_unsupervised", "facts"),
     )
-    for variant, label in (("mix_split", "table off on arithmetic"), ("mix", "table always on")):
+    for variant, label in (
+        ("mix_split", "table off on arithmetic and stories"),
+        ("mix", "table always on"),
+    ):
         line(
-            "Stage 3 (" + label + "), facts chains with the intermediate taught only "
-            "on arithmetic: unseen chains {}, held-out 2nd {}, bridge written on "
-            "unseen chains {}.",
+            "Stage 3 (" + label + "), fact chains with the intermediate taught only "
+            "on arithmetic and stories: unseen chains {}, held-out 2nd {}, bridge "
+            "written on unseen chains {}.",
             acc(variant, "facts", "chain_unseen"),
             acc(variant, "facts"),
             written(variant, "facts"),

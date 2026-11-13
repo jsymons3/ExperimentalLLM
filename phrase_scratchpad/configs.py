@@ -10,29 +10,37 @@ from .tasks import build_suite
 
 VARIANTS = {
     "maths": "stage 1: arithmetic chains, intermediate result taught",
+    "clutrr": "stage 1: family-story questions, intermediate link taught",
     "facts": "stage 2: real-name fact chains, intermediate answer taught",
-    "mix": "stage 3: both; intermediate taught for arithmetic only",
-    "mix_split": "stage 3 with the table switched off on arithmetic",
+    "mix": "stage 3: all three; intermediate taught for arithmetic and stories only",
+    "mix_split": "stage 3 with the table switched off on arithmetic and stories",
     "facts_unsupervised": "control for stage 3: facts alone, intermediate never taught",
     "maths_plain": "baseline: arithmetic, no scratchpad, same block applications",
+    "clutrr_plain": "baseline: family stories, no scratchpad, same block applications",
     "facts_plain": "baseline: facts, no scratchpad, same block applications",
 }
+# Tasks whose questions can be answered from the question alone. In stage 3
+# they are the ones taught the intermediate step, and in mix_split they run
+# with the table off.
+REASONING = ("maths", "clutrr")
+ALL = ("maths", "clutrr", "facts")
+# Share of ``batch_size`` each task gets. Family stories are several times
+# longer than the other questions and there are far fewer of them, so a
+# quarter-size batch costs about the same and still shows each story often.
+TASK_BATCH = {"clutrr": 0.25}
 _PLAIN = {"scratchpad": False, "n_passes": 4, "outer_steps_train": (1,)}
 # The stage 3 runs share one architecture: the lookup plus a small dense core.
 _CORE = {"core_ff": 512}
 _STAGE3 = {"one_hop_every_step": True, "model": _CORE}
 _SETTINGS = {
     "maths": {"tasks": ("maths",), "supervised": ("maths",)},
+    "clutrr": {"tasks": ("clutrr",), "supervised": ("clutrr",)},
     "facts": {"tasks": ("facts",), "supervised": ("facts",)},
-    "mix": {"tasks": ("maths", "facts"), "supervised": ("maths",), **_STAGE3},
-    "mix_split": {
-        "tasks": ("maths", "facts"),
-        "supervised": ("maths",),
-        "table_off": ("maths",),
-        **_STAGE3,
-    },
+    "mix": {"tasks": ALL, "supervised": REASONING, **_STAGE3},
+    "mix_split": {"tasks": ALL, "supervised": REASONING, "table_off": REASONING, **_STAGE3},
     "facts_unsupervised": {"tasks": ("facts",), "supervised": (), **_STAGE3},
     "maths_plain": {"tasks": ("maths",), "supervised": (), "model": _PLAIN},
+    "clutrr_plain": {"tasks": ("clutrr",), "supervised": (), "model": _PLAIN},
     "facts_plain": {"tasks": ("facts",), "supervised": (), "model": _PLAIN},
 }
 
@@ -56,7 +64,7 @@ class RunConfig:
     model: dict = field(default_factory=dict)
     task_overrides: dict = field(default_factory=dict)
     steps: int = 20000
-    batch_size: int = 256  # questions per task in each batch
+    batch_size: int = 256  # questions per task in each batch (see TASK_BATCH)
     two_hop_frac: float = 0.5
     lr: float = 1e-3
     warmup: int = 500

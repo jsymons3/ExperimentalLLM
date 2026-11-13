@@ -49,7 +49,7 @@ def exact(predicted, target):
 
 def accuracy_by_split(model, task, steps=None, table=True):
     return {
-        name: exact(predict(model, task.questions(items), steps, table=table), items.answer)
+        name: exact(predict(model, items.question, steps, table=table), items.answer)
         for name, items in task.eval_sets.items()
     }
 
@@ -64,7 +64,7 @@ def table_usage(model, suite, table_off=(), sample=4000):
     rng = np.random.default_rng(0)
     counts = np.zeros(cfg.n_subkeys**2, dtype=np.int64)
     for task in tasks:
-        questions = task.questions(task.sample(rng, sample // 2, sample // 2))
+        questions = task.sample(rng, sample // 2, sample // 2).question
         for rows in _batches(len(questions), 1024):
             _, trace = model(mx.array(questions[rows]), return_trace=True)
             for index in trace["retrieved"]:
@@ -86,7 +86,7 @@ def scratchpad_report(model, task, items, table=True, batch_size=1024):
     bridge. The last uses the answer key, so it is a diagnostic, never a
     score.
     """
-    questions = task.questions(items)
+    questions = items.question
     rng = np.random.default_rng(0)
     written, slots = [], []
     for rows in _batches(len(questions), batch_size):
@@ -121,13 +121,17 @@ def two_call(model, task, items, steps, table=True):
     The second question is about the entity the model predicted for the
     first, not the true bridge. ``both_known`` counts chains whose two facts
     the model answers correctly on their own; ``native_on_both_known`` is how
-    many of those it also answers as a single two-hop question.
+    many of those it also answers as a single two-hop question. Returns None
+    for a task that is not built from one-step questions.
     """
+    if items.first is None:
+        return None
+
     def ask(questions, depth=None):
         return predict(model, questions, depth, table=table)
 
-    native = (ask(task.questions(items)) == items.answer).all(axis=1)
-    first = ask(task.first_questions(items), steps)
+    native = (ask(items.question) == items.answer).all(axis=1)
+    first = ask(items.first, steps)
     answer = ask(task.second_questions(first, items), steps)
     oracle = ask(task.second_questions(items.bridge, items), steps)
     known = (first == items.bridge).all(axis=1) & (oracle == items.answer).all(axis=1)
@@ -178,6 +182,7 @@ def full_evaluation(model, suite, eval_steps, table_off=()):
                 "two_call": {
                     name: {str(d): two_call(model, task, items, d, table) for d in call_depths}
                     for name, items in chains.items()
+                    if items.first is not None
                 },
                 "scratchpad": None,
             }

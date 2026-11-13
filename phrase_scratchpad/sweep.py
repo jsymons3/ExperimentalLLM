@@ -27,17 +27,19 @@ from recurrent_lookup.sweep import EVALS_PER_RUN, plan_steps, run_logged, run_mi
 from .report import write_report
 from .tasks import PRESETS
 
-# In priority order. Stages 1 and 2 first, each with the scratchpad that worked
-# on the graph task. Then stage 3: arithmetic and facts together, with the
-# intermediate answer taught for arithmetic only.
+# In priority order. Stages 1 and 2 first: each task alone, with the
+# scratchpad that worked on the graph task. Then stage 3: all three together,
+# with the intermediate answer taught for arithmetic and stories only.
 RUNS = [
-    "maths",  # stage 1
+    "maths",  # stage 1: arithmetic
+    "clutrr",  # stage 1: family stories
     "facts",  # stage 2
-    "mix_split",  # stage 3, table switched off on arithmetic
-    "facts_unsupervised",  # control: the same facts without arithmetic
-    "mix",  # stage 3 with the table always on
+    "mix_split",  # stage 3, table switched off on arithmetic and stories
+    "facts_unsupervised",  # control: the same facts on their own
 ]
-BASELINES = ["maths_plain", "facts_plain"]  # the same tasks with no scratchpad
+# Left out by default, because every extra run shortens all of them.
+EXTRAS = ["mix"]  # stage 3 with the table always on: does the switch matter?
+BASELINES = ["maths_plain", "clutrr_plain", "facts_plain"]  # no scratchpad
 
 
 def train_command(preset, variant, out, extra):
@@ -72,14 +74,17 @@ def main(argv=None):
     p.add_argument("--max-steps", type=int, default=64000, help="cap for a time-budgeted plan")
     p.add_argument("--pilot-steps", type=int, default=200)
     p.add_argument("--only", nargs="+", metavar="RUN", help="run only these, in this order")
+    p.add_argument("--with-mix", action="store_true", help="add stage 3 with the table always on")
     p.add_argument("--with-baselines", action="store_true", help="add the no-scratchpad runs")
     p.add_argument("--estimate-only", action="store_true", help="time, print the estimate, stop")
     args, extra = p.parse_known_args(argv)
 
-    runs = args.only or (RUNS + (BASELINES if args.with_baselines else []))
-    unknown = [r for r in runs if r not in RUNS + BASELINES]
+    runs = args.only or (
+        RUNS + (EXTRAS if args.with_mix else []) + (BASELINES if args.with_baselines else [])
+    )
+    unknown = [r for r in runs if r not in RUNS + EXTRAS + BASELINES]
     if unknown:
-        raise SystemExit(f"unknown runs {unknown}; choose from {RUNS + BASELINES}")
+        raise SystemExit(f"unknown runs {unknown}; choose from {RUNS + EXTRAS + BASELINES}")
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     # Hold this for the sweep's lifetime so the same sweep cannot start twice.
@@ -94,7 +99,12 @@ def main(argv=None):
     lock.flush()
 
     plan_path = out / "plan.json"
-    signature = {"preset": args.preset, "runs": runs, "extra": extra}
+    signature = {
+        "preset": args.preset,
+        "runs": runs,
+        "extra": extra,
+        "budget": {"hours": args.hours, "steps": args.steps, "max_steps": args.max_steps},
+    }
     if plan_path.exists():
         plan = json.loads(plan_path.read_text())
         if plan["signature"] != signature:

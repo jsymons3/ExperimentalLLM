@@ -28,7 +28,7 @@ import numpy as np
 
 from recurrent_lookup.train import build_optimizer, load_checkpoint, save_checkpoint
 
-from .configs import VARIANTS, build_config, build_run
+from .configs import TASK_BATCH, VARIANTS, build_config, build_run
 from .evaluate import full_evaluation, periodic_evaluation
 from .model import PhraseModel, count_parameters
 from .tasks import PRESETS
@@ -61,6 +61,7 @@ def parse_args(argv=None):
     d = p.add_argument_group("task size overrides")
     d.add_argument("--max-operand", type=int, help="arithmetic: largest operand")
     d.add_argument("--n-people", type=int, help="facts: how many people to include")
+    d.add_argument("--max-stories", type=int, help="family stories: how many to train on")
 
     m = p.add_argument_group("model overrides")
     m.add_argument("--d-model", type=int)
@@ -100,6 +101,8 @@ def config_from_args(args):
         overrides["maths"] = {"max_operand": args.max_operand}
     if args.n_people is not None:
         overrides["facts"] = {"n_people": args.n_people}
+    if args.max_stories is not None:
+        overrides["clutrr"] = {"max_stories": args.max_stories}
     return build_config(
         args.variant, args.preset, args.seed,
         model=given(MODEL_FLAGS), task_overrides=overrides, **given(TRAIN_FLAGS),
@@ -110,12 +113,16 @@ def format_accuracy(name, acc):
     def a(split):
         return f"{acc[split]:.3f}" if split in acc else "  -  "
 
-    return (
+    line = (
         f"{name}: 1hop {a('one_hop')} held {a('one_hop_held')} | "
-        f"chains train {a('chain_train')} unseen {a('chain_unseen')} | "
-        f"held-out 1st {a('chain_held_first')} 2nd {a('chain_held_second')} "
-        f"both {a('chain_held_both')}"
+        f"chains train {a('chain_train')} unseen {a('chain_unseen')}"
     )
+    if "chain_held_second" in acc:
+        line += (
+            f" | held-out 1st {a('chain_held_first')} 2nd {a('chain_held_second')} "
+            f"both {a('chain_held_both')}"
+        )
+    return line
 
 
 def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes=10.0):
@@ -142,9 +149,11 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     print(f"model  {asdict(model_cfg)}")
     print(f"params {params}")
 
-    n_chain = int(round(cfg.batch_size * cfg.two_hop_frac))
-    n_one = cfg.batch_size - n_chain
-    batch_total = cfg.batch_size * len(suite.tasks)
+    # Questions per task in a batch, split into one-step and two-step.
+    sizes = [
+        max(2, int(round(cfg.batch_size * TASK_BATCH.get(task.name, 1.0)))) for task in suite.tasks
+    ]
+    counts = [(size - int(round(size * cfg.two_hop_frac)), int(round(size * cfg.two_hop_frac))) for size in sizes]
     state = [model.state, optimizer.state]
 
     def per_question_loss(logits, target):
@@ -160,7 +169,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         Questions of a ``table_off`` task run with the lookup switched off.
         """
 
-        def loss_fn(model, question, answer, bridge, teach_bridge, every_step, table_on):
+        def task_loss(model, question, answer, bridge, teach_bridge, every_step, table_on):
             logits, trace = model(
                 question,
                 steps=steps,
@@ -178,7 +187,16 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
             if earlier and cfg.bridge_loss_weight:
                 first = per_question_loss(trace["step_logits"][0], bridge)
                 total = total + cfg.bridge_loss_weight * (first * teach_bridge).sum()
-            return total / batch_total
+            return total
+
+        def loss_fn(model, *batch):
+            # Each task's questions have their own length, so each task is a
+            # separate forward pass: six arrays per task. Tasks count equally,
+            # whatever their batch sizes.
+            total = mx.array(0.0)
+            for i, size in enumerate(sizes):
+                total = total + task_loss(model, *batch[6 * i : 6 * i + 6]) / size
+            return total / len(sizes)
 
         loss_and_grad = nn.value_and_grad(model, loss_fn)
 
@@ -197,24 +215,21 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     rng = np.random.default_rng([cfg.seed, step0])
 
     def make_batch():
-        parts = []
-        for task in suite.tasks:
+        arrays = []
+        for task, (n_one, n_chain) in zip(suite.tasks, counts):
             items = task.sample(rng, n_one, n_chain)
-            chain = items.is_chain
-            teach = chain & (task.name in cfg.supervised)
-            every = ~chain & cfg.one_hop_every_step
+            teach = items.chain & (task.name in cfg.supervised)
+            every = ~items.chain & cfg.one_hop_every_step
             table_on = np.full(len(items), task.name not in cfg.table_off)
-            parts.append(
-                (
-                    task.questions(items),
-                    items.answer,
-                    items.bridge,
-                    teach.astype(np.float32),
-                    every.astype(np.float32),
-                    table_on.astype(np.float32),
-                )
-            )
-        return [mx.array(np.concatenate(column)) for column in zip(*parts)]
+            arrays += [
+                items.question,
+                items.answer,
+                items.bridge,
+                teach.astype(np.float32),
+                every.astype(np.float32),
+                table_on.astype(np.float32),
+            ]
+        return [mx.array(a) for a in arrays]
 
     def one_step():
         batch = make_batch()
