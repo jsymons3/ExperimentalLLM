@@ -16,7 +16,7 @@ This package takes the next steps, one change at a time:
    chains where it is never taught, and whether reasoning can be kept in a
    small core while facts go to the table.
 
-Nothing here has been run at full size. See "Status".
+No full-size training run has finished yet. See "Status".
 
 ## Setup
 
@@ -189,6 +189,11 @@ and stories survive with the table off and facts collapse.
 Facts are never trained with the table off. That would only teach the core to
 memorise them.
 
+`mix_split` jointly updates the core and the table on fact questions. The
+table switch tests which capabilities depend on the table; it does not force
+all factual information out of the core. Pretraining the core, freezing it,
+and then learning facts only in the table is a separate future experiment.
+
 ## What the report shows
 
 - **Accuracy** per run, task and split, next to the guessing floor.
@@ -258,6 +263,15 @@ Each run has one seed. Small gaps are noise.
   stories and 1,919 test stories with two relations are used.
 
 ## Status
+
+November 13 Mac preflight: all 83 tests across the three packages pass on Apple
+GPU, including compiled training and checkpoint/resume. The review found and
+fixed one issue in `mix_split`: a batch with the table off decayed the lookup's
+running query mean and variance toward zero. Such batches now leave both
+statistics unchanged. The regression check warms the statistics before switching
+the table off, so it detects the bug even after facts have been learned.
+
+Initial checks from Claude's environment, before the Mac preflight:
 
 - Written and tested on MLX's Linux CPU build, which is far too slow for a
   full-size run. 25 tests pass, every run trains, resumes, evaluates and

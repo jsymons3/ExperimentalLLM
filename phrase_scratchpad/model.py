@@ -96,12 +96,19 @@ class MaskedLookup(ProductKeyLookup):
         if self.training:
             flat = mx.stop_gradient(q)
             weight = mx.ones((B, T, 1)) if valid is None else valid[..., None]
-            count = mx.maximum(weight.sum(), 1.0)
+            observed = weight.sum()
+            count = mx.maximum(observed, 1.0)
             mean = (flat * weight).sum(axis=(0, 1)) / count
             var = (((flat - mean) ** 2) * weight).sum(axis=(0, 1)) / count
             m = norm.momentum
-            norm.running_mean = (1 - m) * norm.running_mean + m * mean
-            norm.running_var = (1 - m) * norm.running_var + m * var
+            # An entire task batch can have its table switched off. There
+            # are then no lookup observations, not observations of zero.
+            norm.running_mean = mx.where(
+                observed > 0, (1 - m) * norm.running_mean + m * mean, norm.running_mean
+            )
+            norm.running_var = mx.where(
+                observed > 0, (1 - m) * norm.running_var + m * var, norm.running_var
+            )
         q = (q - norm.running_mean) * mx.rsqrt(norm.running_var + norm.eps)
         q = q.reshape(B, T, H, 2, self.half)
 

@@ -117,9 +117,14 @@ def test_table_switch_removes_the_lookup_for_chosen_questions():
 def test_questions_with_the_table_off_do_not_move_its_query_statistics():
     model = make(core_ff=64)
     model.train()
-    before = np.array(model.ff.norm.running_mean)
-    model(QUESTION, steps=1, table_on=mx.zeros((2,)))
-    assert np.array_equal(before, np.array(model.ff.norm.running_mean))
+    # Warm the statistics first: a zero mean hides accidental decay toward zero.
+    mx.eval(model(QUESTION, steps=2))
+    norm = model.ff.norm
+    before = [np.array(norm.running_mean), np.array(norm.running_var)]
+    assert np.abs(before[0]).max() > 0
+    mx.eval(model(QUESTION, steps=3, table_on=mx.zeros((2,))))
+    assert np.array_equal(before[0], np.array(norm.running_mean))
+    assert np.array_equal(before[1], np.array(norm.running_var))
 
 
 def test_plain_model_has_no_scratchpad():
