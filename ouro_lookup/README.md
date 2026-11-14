@@ -226,7 +226,8 @@ questions). Add them with `--only`.
 - **Learning rate.** The table's rate peaks at 0.0005, half of what the small
   models used, and both rates fall in a straight line to a tenth of their
   peak by the last step. In the checks below accuracy swung between
-  evaluations at a constant 0.001, and the lower rate learned just as fast.
+  evaluations at a constant 0.001, and was steady with the lower, falling
+  rate, which learned just as fast.
 
 ## Status
 
@@ -248,22 +249,34 @@ Checked while building, on a Linux machine with no GPU:
   copy of the table attached to the original model. 16 made-up facts were
   recalled 100% with the table and 0% without after about 16 steps, at the
   old learning rate and at the new one.
-- **A first look at the written note**, with the same PyTorch copy: Ouro
-  fully frozen, 32 facts about 16 people, 25 two-step training questions, 150
-  steps at the old learning rate. One run, with 11 to 14 questions per group:
+- **The written note works on the real frozen model, at toy size.** With the
+  same PyTorch copy: Ouro fully frozen, no adapters, 32 facts about 16 people
+  with two relations, 25 two-step training questions, 300 steps at the
+  current learning rate. One run:
 
-  | Questions | Note is right | Answer right | With shuffled notes |
-  |---|---|---|---|
-  | One-step facts | | 97% (0% with the table off) | |
-  | Two-step, trained | 96% | 92% | 12% |
-  | Two-step, unseen | 57% | 57% | 0% |
-  | Held-out 1st | 82% | 82% | 18% |
-  | Held-out 2nd | 23% | 23% | 8% |
+  | Questions | Count | Note is right | Answer right | With shuffled notes |
+  |---|---|---|---|---|
+  | One-step facts | 32 | | 100% (0% with the table off) | |
+  | Two-step, trained | 25 | 100% | 100% | 16% |
+  | Two-step, unseen | 14 | 93% | 93% | 0% |
+  | Held-out 1st | 11 | 100% | 100% | 27% |
+  | Held-out 2nd | 13 | 100% | 100% | 46% |
 
-  This is a sign that the note route can work on a frozen model, not a
-  measurement. Training was unsettled: one-step recall read 59%, 59%, 84%,
-  62% and 97% at successive evaluations. The low held-out 2nd figure is three
-  right out of thirteen and may or may not hold up.
+  One-step recall was 100% at every evaluation from step 120 on, and the
+  held-out groups stayed between 82% and 100%. How to weigh it:
+
+  - It is small: one run, 11 to 14 questions per group, two relations.
+  - The note for a two-step question is the answer to its last words ("the
+    mentor of Daniel is"), so writing it mostly asks the frozen model to
+    ignore the start of the question. That is the easy half of chaining, and
+    it is why the note route can work with no adapters at all.
+  - Shuffled notes score high on held-out 2nd because several of its
+    questions share one held-out fact, and so the same note and answer. A
+    swap often hands back an identical note.
+  - An earlier run at the old learning rate (a constant 0.001, 150 steps) was
+    unsettled: one-step recall read 59%, 59%, 84%, 62% and 97% at successive
+    evaluations, and it ended with held-out 2nd at 23%. That low figure did
+    not hold.
 
 Not checked:
 
