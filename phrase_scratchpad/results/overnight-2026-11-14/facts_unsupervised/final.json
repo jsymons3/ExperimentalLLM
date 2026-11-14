@@ -1,0 +1,237 @@
+{
+  "variant": "facts_unsupervised",
+  "seed": 0,
+  "preset": "full",
+  "steps": 64000,
+  "supervised": [],
+  "table_off": [],
+  "params": {
+    "embedding": 2041600,
+    "attention": 65536,
+    "feed_forward": 4260096,
+    "scratchpad": 1664,
+    "other": 768,
+    "core_mlp": 131968,
+    "total": 6501632
+  },
+  "sec_per_step": 0.041376764817476215,
+  "wall_minutes": 44.41624440695159,
+  "peak_memory_gb": 3.085446396,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "default_steps": 2,
+  "tasks": {
+    "facts": {
+      "trained_with_table": true,
+      "accuracy": {
+        "one_hop": 0.9935,
+        "one_hop_held": 0.9905,
+        "chain_train": 0.958,
+        "chain_unseen": 0.6775,
+        "chain_held_first": 0.581,
+        "chain_held_second": 0.242,
+        "chain_held_both": 0.18893129770992367
+      },
+      "accuracy_table_on": {
+        "one_hop": 0.9935,
+        "one_hop_held": 0.9905,
+        "chain_train": 0.958,
+        "chain_unseen": 0.6775,
+        "chain_held_first": 0.581,
+        "chain_held_second": 0.242,
+        "chain_held_both": 0.18893129770992367
+      },
+      "accuracy_table_off": {
+        "one_hop": 0.6425,
+        "one_hop_held": 0.687,
+        "chain_train": 0.567,
+        "chain_unseen": 0.338,
+        "chain_held_first": 0.2875,
+        "chain_held_second": 0.1525,
+        "chain_held_both": 0.1297709923664122
+      },
+      "accuracy_by_steps": {
+        "1": {
+          "one_hop": 0.9905,
+          "one_hop_held": 0.9855,
+          "chain_train": 0.8755,
+          "chain_unseen": 0.5845,
+          "chain_held_first": 0.4825,
+          "chain_held_second": 0.214,
+          "chain_held_both": 0.1650763358778626
+        },
+        "2": {
+          "one_hop": 0.9935,
+          "one_hop_held": 0.9905,
+          "chain_train": 0.958,
+          "chain_unseen": 0.6775,
+          "chain_held_first": 0.581,
+          "chain_held_second": 0.242,
+          "chain_held_both": 0.18893129770992367
+        },
+        "3": {
+          "one_hop": 0.9935,
+          "one_hop_held": 0.99,
+          "chain_train": 0.963,
+          "chain_unseen": 0.6845,
+          "chain_held_first": 0.5945,
+          "chain_held_second": 0.245,
+          "chain_held_both": 0.1984732824427481
+        },
+        "4": {
+          "one_hop": 0.9935,
+          "one_hop_held": 0.99,
+          "chain_train": 0.9645,
+          "chain_unseen": 0.6875,
+          "chain_held_first": 0.5985,
+          "chain_held_second": 0.247,
+          "chain_held_both": 0.19942748091603055
+        }
+      },
+      "majority_baseline": {
+        "one_hop": 0.04,
+        "one_hop_held": 0.0365,
+        "chain_train": 0.151,
+        "chain_unseen": 0.1425,
+        "chain_held_first": 0.1435,
+        "chain_held_second": 0.1345,
+        "chain_held_both": 0.1269083969465649
+      },
+      "two_call": {
+        "chain_train": {
+          "1": {
+            "n": 2000,
+            "native": 0.958,
+            "two_call": 0.9835,
+            "both_known": 1953,
+            "native_on_both_known": 1873
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.958,
+            "two_call": 0.9905,
+            "both_known": 1972,
+            "native_on_both_known": 1892
+          }
+        },
+        "chain_unseen": {
+          "1": {
+            "n": 2000,
+            "native": 0.6775,
+            "two_call": 0.9775,
+            "both_known": 1946,
+            "native_on_both_known": 1339
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.6775,
+            "two_call": 0.985,
+            "both_known": 1962,
+            "native_on_both_known": 1342
+          }
+        },
+        "chain_held_first": {
+          "1": {
+            "n": 2000,
+            "native": 0.581,
+            "two_call": 0.9815,
+            "both_known": 1950,
+            "native_on_both_known": 1150
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.581,
+            "two_call": 0.9865,
+            "both_known": 1965,
+            "native_on_both_known": 1152
+          }
+        },
+        "chain_held_second": {
+          "1": {
+            "n": 2000,
+            "native": 0.242,
+            "two_call": 0.98,
+            "both_known": 1947,
+            "native_on_both_known": 471
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.242,
+            "two_call": 0.9825,
+            "both_known": 1962,
+            "native_on_both_known": 481
+          }
+        },
+        "chain_held_both": {
+          "1": {
+            "n": 1048,
+            "native": 0.18893129770992367,
+            "two_call": 0.9751908396946565,
+            "both_known": 1017,
+            "native_on_both_known": 196
+          },
+          "2": {
+            "n": 1048,
+            "native": 0.18893129770992367,
+            "two_call": 0.976145038167939,
+            "both_known": 1019,
+            "native_on_both_known": 197
+          }
+        }
+      },
+      "scratchpad": {
+        "chain_train": {
+          "bridge_written": 0.001,
+          "interventions": {
+            "normal": 0.958,
+            "cleared": 0.8885,
+            "shuffled": 0.7655,
+            "true_bridge": 0.9475
+          }
+        },
+        "chain_unseen": {
+          "bridge_written": 0.0065,
+          "interventions": {
+            "normal": 0.6775,
+            "cleared": 0.584,
+            "shuffled": 0.5115,
+            "true_bridge": 0.74
+          }
+        },
+        "chain_held_first": {
+          "bridge_written": 0.013,
+          "interventions": {
+            "normal": 0.581,
+            "cleared": 0.505,
+            "shuffled": 0.453,
+            "true_bridge": 0.6385
+          }
+        },
+        "chain_held_second": {
+          "bridge_written": 0.016,
+          "interventions": {
+            "normal": 0.242,
+            "cleared": 0.231,
+            "shuffled": 0.2015,
+            "true_bridge": 0.3095
+          }
+        },
+        "chain_held_both": {
+          "bridge_written": 0.026717557251908396,
+          "interventions": {
+            "normal": 0.18893129770992367,
+            "cleared": 0.1717557251908397,
+            "shuffled": 0.17557251908396945,
+            "true_bridge": 0.27099236641221375
+          }
+        }
+      }
+    }
+  },
+  "table": {
+    "entries": 16384,
+    "used_frac": 0.73590087890625,
+    "effective_frac": 0.3406622633182822
+  }
+}

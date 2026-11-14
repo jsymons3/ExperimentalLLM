@@ -1,0 +1,101 @@
+{
+  "steps": 64000,
+  "source": "8.0h budget, at most 64000",
+  "estimated_minutes": {
+    "maths": 46.785622381100744,
+    "clutrr": 69.53632508420851,
+    "facts": 41.41043319231054,
+    "mix_split": 182.33454608212534,
+    "facts_unsupervised": 44.48010807104875
+  },
+  "timings": {
+    "maths": {
+      "sec_per_step": 0.04325099332956597,
+      "eval_sec": 0.8147523328661919,
+      "final_eval_sec": 6.483676459174603,
+      "params": {
+        "embedding": 3072,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1408,
+        "other": 768,
+        "total": 4330880
+      }
+    },
+    "clutrr": {
+      "sec_per_step": 0.06381399812409655,
+      "eval_sec": 1.926236749626696,
+      "final_eval_sec": 11.034155125264078,
+      "params": {
+        "embedding": 285824,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1152,
+        "other": 768,
+        "total": 4613376
+      }
+    },
+    "facts": {
+      "sec_per_step": 0.038472103336825964,
+      "eval_sec": 0.42426629224792123,
+      "final_eval_sec": 5.4407262918539345,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "total": 6369664
+      }
+    },
+    "mix_split": {
+      "sec_per_step": 0.16774195103906095,
+      "eval_sec": 4.3777231252752244,
+      "final_eval_sec": 29.478973416611552,
+      "params": {
+        "embedding": 2328064,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "core_mlp": 131968,
+        "total": 6788096
+      }
+    },
+    "facts_unsupervised": {
+      "sec_per_step": 0.0413306845840998,
+      "eval_sec": 0.4445500001311302,
+      "final_eval_sec": 5.860670875292271,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "core_mlp": 131968,
+        "total": 6501632
+      }
+    }
+  },
+  "signature": {
+    "preset": "full",
+    "runs": [
+      "maths",
+      "clutrr",
+      "facts",
+      "mix_split",
+      "facts_unsupervised"
+    ],
+    "extra": [
+      "--checkpoint-minutes",
+      "5",
+      "--log-every",
+      "500"
+    ],
+    "budget": {
+      "hours": 8.0,
+      "steps": null,
+      "max_steps": 64000
+    }
+  }
+}

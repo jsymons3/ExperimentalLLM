@@ -26,14 +26,14 @@ REASONING = ("maths", "clutrr")
 ALL = ("maths", "clutrr", "facts")
 # Block applications per outer step, where a task needs more than the model's
 # default of one. Reading relations out of sentences takes more depth than
-# one lookup; arithmetic and facts are kept to one so that a two-step
-# question cannot be answered inside a single step.
+# one lookup; arithmetic and facts are kept to one to discourage shortcuts.
+# Full-size arithmetic still largely bypasses the scratchpad's contents.
 TASK_PASSES = {"clutrr": 2}
 # Share of a task's two-step training questions whose subject is hidden after
 # the first step (scaled by ``hide_subject``). Facts need it: otherwise the
 # table learns to send a film straight to what it stores about its director,
-# and the scratchpad goes unread. Arithmetic does not: one pass per step
-# already makes its scratchpad necessary, and hiding slowed it in small checks.
+# and the scratchpad goes unread. Arithmetic was left unmasked because hiding
+# slowed it in small checks; one pass did not enforce note use at full size.
 TASK_HIDE = {"facts": 0.5}
 # Share of ``batch_size`` each task gets. Family stories are several times
 # longer than the other questions and there are far fewer of them, so a

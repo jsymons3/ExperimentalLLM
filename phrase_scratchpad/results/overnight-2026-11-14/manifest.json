@@ -1,0 +1,96 @@
+{
+  "experiment": "Multi-token scratchpad overnight sweep",
+  "training_source_commit": "9a043378a1e0f0c807e3ee6d2e499f6ac81e12cf",
+  "started_at_chicago": "2026-11-13T21:33:13.611520-06:00",
+  "steps_per_run": 64000,
+  "seeds": [
+    0
+  ],
+  "source_root": "runs/phrase-scratchpad",
+  "command": "bash scripts/run_phrase_scratchpad.sh",
+  "notes": [
+    "All five runs started independently; mix_split is joint training, not a frozen-core curriculum.",
+    "Controlled Wikipedia-derived facts and CLUTRR stories, not raw Wikipedia language modeling.",
+    "Checkpoints remain local and are identified by SHA-256; this archive includes configurations, all periodic evaluations, and complete final diagnostics.",
+    "One seed per variant. The mixed/control comparison changes vocabulary and task-loss composition as well as the presence of arithmetic and stories."
+  ],
+  "files": {
+    "plan.json": "ff3b5db7d7b2a13b84a849fe2a9ee76c0dcd439aa5b80440950d5f4981e59853",
+    "source.json": "fd41bcb7a2717d0af390676fc9aec239c43c078b04f79dd1c1ceb52ef40378f2",
+    "maths/config.json": "7063a2fad5b60eb823c005031a0ef4b2aaa0681b795b5b27cead3f8a145333ff",
+    "maths/metrics.jsonl": "a12aca2543f3850b3235f6727aa98f9e39a70575a33632b16b5f85576a13cd9e",
+    "maths/final.json": "d465edd191c69dcac41b9c41130cab888aa543e98b6ac856c9c0bb840de6e7f1",
+    "clutrr/config.json": "0d0fbdea0b5aae0b74473a32357d43c9ec0b40469ccb687bc7cd3955e24e0d57",
+    "clutrr/metrics.jsonl": "0c4480b50608445daac630f2e5ea0dc70cc7c35e9e58ee087e4dde7dfebd2fdd",
+    "clutrr/final.json": "4a5440829bdc25c9cc4d3050931dcb0856f877751db628ebfc594cd19a20aa2a",
+    "facts/config.json": "3780e02f0290e3b5bf0db2ac1bd4d03694ff304a0b2dedba366521998aa9d486",
+    "facts/metrics.jsonl": "8edda615681917ab5d73caa0c8de1c29f931f1558f666e92f1d4b0870195682e",
+    "facts/final.json": "756e7d54f7b7a6487af6de56ed33229fbcec83f423bd5fc55cb0c12ec82709a6",
+    "mix_split/config.json": "7073d29e201225104cfc2be6563d5eadc55364c11a7a043350406c62387d5dce",
+    "mix_split/metrics.jsonl": "1364e18b352f890db83e810e0ec3078ec8e9f0d8247bc1797cedf46713ce3321",
+    "mix_split/final.json": "040be8b3af8eacf08f19a2cd5a75a3871e0aaa6659b531ea2381638c7d4faf27",
+    "facts_unsupervised/config.json": "ad5ec4e86992b7f331fef27c4c66c87c504e1d43e0281f89413b2d3c0e0f9bc6",
+    "facts_unsupervised/metrics.jsonl": "1c0a77e6e6e250b8fafc2fea17f42393d974b5e59283b45a71b2e0f626eff8ed",
+    "facts_unsupervised/final.json": "2646725c90bbd75ead8b24c83f63fd916cfbcfa3f12f52857e31f953a316c573",
+    "report.md": "1d0a0f2bf43c14b37b599e60098ff3f7086441a56eacae740b764d2a093953a6"
+  },
+  "runs": {
+    "maths": {
+      "finished_at_chicago": "2026-11-13T22:17:44.166282-06:00",
+      "periodic_evaluations": 40,
+      "wall_minutes": 44.29171900278113,
+      "checkpoint_local_path": "runs/phrase-scratchpad/maths/checkpoint.safetensors",
+      "checkpoint_bytes": 51978000,
+      "checkpoint_sha256": "1c3cfcfb291ada76bf1dc7a45412c13ac017ddc7bc2424713b9de434eb4c9e01"
+    },
+    "clutrr": {
+      "finished_at_chicago": "2026-11-13T23:22:58.574172-06:00",
+      "periodic_evaluations": 40,
+      "wall_minutes": 65.05641262153318,
+      "checkpoint_local_path": "runs/phrase-scratchpad/clutrr/checkpoint.safetensors",
+      "checkpoint_bytes": 55367958,
+      "checkpoint_sha256": "a21bea969e77ab42e4b93eb2c6bbcf36db47b118f8a590790931b0dc1a4bcb23"
+    },
+    "facts": {
+      "finished_at_chicago": "2026-11-14T00:04:46.628067-06:00",
+      "periodic_evaluations": 40,
+      "wall_minutes": 41.69802907847334,
+      "checkpoint_local_path": "runs/phrase-scratchpad/facts/checkpoint.safetensors",
+      "checkpoint_bytes": 76443416,
+      "checkpoint_sha256": "95b244a1f2ff41539ad944f658752e413af4257bd29017bdf9f79db41f82f1f5"
+    },
+    "mix_split": {
+      "finished_at_chicago": "2026-11-14T03:10:57.355358-06:00",
+      "periodic_evaluations": 40,
+      "wall_minutes": 185.72622091805096,
+      "checkpoint_local_path": "runs/phrase-scratchpad/mix_split/checkpoint.safetensors",
+      "checkpoint_bytes": 81466199,
+      "checkpoint_sha256": "6a58440f47c4306c3bafa497ce72a7cac67604663cee4e50c72e72a68de17e1a"
+    },
+    "facts_unsupervised": {
+      "finished_at_chicago": "2026-11-14T03:55:29.066061-06:00",
+      "periodic_evaluations": 40,
+      "wall_minutes": 44.41624440695159,
+      "checkpoint_local_path": "runs/phrase-scratchpad/facts_unsupervised/checkpoint.safetensors",
+      "checkpoint_bytes": 78028628,
+      "checkpoint_sha256": "36288113df2cd6d7bc8b8d0abfb23a4161a04ff743fee6672f16ce5163e21afc"
+    }
+  },
+  "data": {
+    "phrase_scratchpad/facts/people_facts.tsv": {
+      "sha256": "f5cf26f9beb05dfd5ead34a91d804b50f9372a7027545934bd092406af639472",
+      "bytes": 1492698
+    },
+    "phrase_scratchpad/facts/people_facts.meta.json": {
+      "sha256": "31ac0edf2d90948476e36788ffce005014ce0dec88a73234815b3f319310d905",
+      "bytes": 1103
+    }
+  },
+  "finished_at_chicago": "2026-11-14T03:55:29.066061-06:00",
+  "publication_validation": {
+    "tests": "83 passed in 4.75s on Apple GPU",
+    "test_command": ".venv/bin/python -m pytest --rootdir=. --confcutdir=. phrase_scratchpad/tests recurrent_lookup/tests core_memory/tests -q",
+    "artifact_check": "All 17 archived source/plan/config/metrics/final files match their SHA-256 hashes; regenerated report tables match the original report.",
+    "training_changes_since_run": "Documentation and comments only; the training source commit is recorded above."
+  }
+}

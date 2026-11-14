@@ -1,0 +1,35 @@
+{
+  "variant": "facts",
+  "preset": "full",
+  "seed": 0,
+  "tasks": [
+    "facts"
+  ],
+  "supervised": [
+    "facts"
+  ],
+  "one_hop_every_step": false,
+  "hide_subject": true,
+  "table_off": [],
+  "model": {},
+  "task_overrides": {},
+  "steps": 64000,
+  "batch_size": 256,
+  "two_hop_frac": 0.5,
+  "lr": 0.001,
+  "warmup": 500,
+  "weight_decay": 0.1,
+  "table_weight_decay": null,
+  "grad_clip": 1.0,
+  "bridge_loss_weight": 1.0,
+  "eval_every": 1600,
+  "log_every": 500,
+  "eval_size": 2000,
+  "eval_steps": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "lr_schedule": "linear warmup from 0 to lr over `warmup` steps, then constant"
+}

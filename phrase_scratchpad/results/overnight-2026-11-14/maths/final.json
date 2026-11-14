@@ -1,0 +1,238 @@
+{
+  "variant": "maths",
+  "seed": 0,
+  "preset": "full",
+  "steps": 64000,
+  "supervised": [
+    "maths"
+  ],
+  "table_off": [],
+  "params": {
+    "embedding": 3072,
+    "attention": 65536,
+    "feed_forward": 4260096,
+    "scratchpad": 1408,
+    "other": 768,
+    "total": 4330880
+  },
+  "sec_per_step": 0.04124497927281481,
+  "wall_minutes": 44.29171900278113,
+  "peak_memory_gb": 3.271637448,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "default_steps": 2,
+  "tasks": {
+    "maths": {
+      "trained_with_table": true,
+      "accuracy": {
+        "one_hop": 0.9925,
+        "one_hop_held": 0.981,
+        "chain_train": 0.8155,
+        "chain_unseen": 0.823,
+        "chain_held_first": 0.8235,
+        "chain_held_second": 0.832,
+        "chain_held_both": 0.8015
+      },
+      "accuracy_table_on": {
+        "one_hop": 0.9925,
+        "one_hop_held": 0.981,
+        "chain_train": 0.8155,
+        "chain_unseen": 0.823,
+        "chain_held_first": 0.8235,
+        "chain_held_second": 0.832,
+        "chain_held_both": 0.8015
+      },
+      "accuracy_table_off": {
+        "one_hop": 0.003,
+        "one_hop_held": 0.0035,
+        "chain_train": 0.009,
+        "chain_unseen": 0.006,
+        "chain_held_first": 0.0065,
+        "chain_held_second": 0.0085,
+        "chain_held_both": 0.0075
+      },
+      "accuracy_by_steps": {
+        "1": {
+          "one_hop": 0.431,
+          "one_hop_held": 0.3005,
+          "chain_train": 0.0105,
+          "chain_unseen": 0.012,
+          "chain_held_first": 0.011,
+          "chain_held_second": 0.0095,
+          "chain_held_both": 0.01
+        },
+        "2": {
+          "one_hop": 0.9925,
+          "one_hop_held": 0.981,
+          "chain_train": 0.8155,
+          "chain_unseen": 0.823,
+          "chain_held_first": 0.8235,
+          "chain_held_second": 0.832,
+          "chain_held_both": 0.8015
+        },
+        "3": {
+          "one_hop": 0.9955,
+          "one_hop_held": 0.99,
+          "chain_train": 0.957,
+          "chain_unseen": 0.96,
+          "chain_held_first": 0.948,
+          "chain_held_second": 0.955,
+          "chain_held_both": 0.938
+        },
+        "4": {
+          "one_hop": 0.9945,
+          "one_hop_held": 0.989,
+          "chain_train": 0.9655,
+          "chain_unseen": 0.965,
+          "chain_held_first": 0.963,
+          "chain_held_second": 0.9645,
+          "chain_held_both": 0.9505
+        }
+      },
+      "majority_baseline": {
+        "one_hop": 0.007,
+        "one_hop_held": 0.0025,
+        "chain_train": 0.0115,
+        "chain_unseen": 0.006,
+        "chain_held_first": 0.005,
+        "chain_held_second": 0.0035,
+        "chain_held_both": 0.008
+      },
+      "two_call": {
+        "chain_train": {
+          "1": {
+            "n": 2000,
+            "native": 0.8155,
+            "two_call": 0.5835,
+            "both_known": 1166,
+            "native_on_both_known": 939
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.8155,
+            "two_call": 0.9915,
+            "both_known": 1983,
+            "native_on_both_known": 1621
+          }
+        },
+        "chain_unseen": {
+          "1": {
+            "n": 2000,
+            "native": 0.823,
+            "two_call": 0.578,
+            "both_known": 1154,
+            "native_on_both_known": 946
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.823,
+            "two_call": 0.9895,
+            "both_known": 1979,
+            "native_on_both_known": 1629
+          }
+        },
+        "chain_held_first": {
+          "1": {
+            "n": 2000,
+            "native": 0.8235,
+            "two_call": 0.586,
+            "both_known": 1172,
+            "native_on_both_known": 978
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.8235,
+            "two_call": 0.9925,
+            "both_known": 1985,
+            "native_on_both_known": 1638
+          }
+        },
+        "chain_held_second": {
+          "1": {
+            "n": 2000,
+            "native": 0.832,
+            "two_call": 0.5585,
+            "both_known": 1116,
+            "native_on_both_known": 933
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.832,
+            "two_call": 0.991,
+            "both_known": 1982,
+            "native_on_both_known": 1654
+          }
+        },
+        "chain_held_both": {
+          "1": {
+            "n": 2000,
+            "native": 0.8015,
+            "two_call": 0.582,
+            "both_known": 1164,
+            "native_on_both_known": 921
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.8015,
+            "two_call": 0.9885,
+            "both_known": 1977,
+            "native_on_both_known": 1590
+          }
+        }
+      },
+      "scratchpad": {
+        "chain_train": {
+          "bridge_written": 0.994,
+          "interventions": {
+            "normal": 0.8155,
+            "cleared": 0.51,
+            "shuffled": 0.8015,
+            "true_bridge": 0.8155
+          }
+        },
+        "chain_unseen": {
+          "bridge_written": 0.994,
+          "interventions": {
+            "normal": 0.823,
+            "cleared": 0.5405,
+            "shuffled": 0.8215,
+            "true_bridge": 0.823
+          }
+        },
+        "chain_held_first": {
+          "bridge_written": 0.9945,
+          "interventions": {
+            "normal": 0.8235,
+            "cleared": 0.512,
+            "shuffled": 0.815,
+            "true_bridge": 0.8235
+          }
+        },
+        "chain_held_second": {
+          "bridge_written": 0.995,
+          "interventions": {
+            "normal": 0.832,
+            "cleared": 0.521,
+            "shuffled": 0.8145,
+            "true_bridge": 0.8315
+          }
+        },
+        "chain_held_both": {
+          "bridge_written": 0.9935,
+          "interventions": {
+            "normal": 0.8015,
+            "cleared": 0.4905,
+            "shuffled": 0.794,
+            "true_bridge": 0.8015
+          }
+        }
+      }
+    }
+  },
+  "table": {
+    "entries": 16384,
+    "used_frac": 0.33026123046875,
+    "effective_frac": 0.11369959237983894
+  }
+}
