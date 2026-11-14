@@ -1,0 +1,98 @@
+{
+  "variant": "clutrr",
+  "seed": 0,
+  "preset": "full",
+  "steps": 64000,
+  "supervised": [
+    "clutrr"
+  ],
+  "table_off": [],
+  "params": {
+    "embedding": 285824,
+    "attention": 65536,
+    "feed_forward": 4260096,
+    "scratchpad": 1152,
+    "other": 768,
+    "total": 4613376
+  },
+  "sec_per_step": 0.060282846742040416,
+  "wall_minutes": 65.05641262153318,
+  "peak_memory_gb": 4.118333888,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "default_steps": 2,
+  "tasks": {
+    "clutrr": {
+      "trained_with_table": true,
+      "accuracy": {
+        "one_hop": 0.9945,
+        "chain_train": 1.0,
+        "chain_unseen": 0.9958311620635748
+      },
+      "accuracy_table_on": {
+        "one_hop": 0.9945,
+        "chain_train": 1.0,
+        "chain_unseen": 0.9958311620635748
+      },
+      "accuracy_table_off": {
+        "one_hop": 0.403,
+        "chain_train": 0.2165,
+        "chain_unseen": 0.19176654507556018
+      },
+      "accuracy_by_steps": {
+        "1": {
+          "one_hop": 0.0,
+          "chain_train": 0.0,
+          "chain_unseen": 0.0
+        },
+        "2": {
+          "one_hop": 0.9945,
+          "chain_train": 1.0,
+          "chain_unseen": 0.9958311620635748
+        },
+        "3": {
+          "one_hop": 0.994,
+          "chain_train": 1.0,
+          "chain_unseen": 0.9958311620635748
+        },
+        "4": {
+          "one_hop": 0.995,
+          "chain_train": 1.0,
+          "chain_unseen": 0.9958311620635748
+        }
+      },
+      "majority_baseline": {
+        "one_hop": 0.1305,
+        "chain_train": 0.1075,
+        "chain_unseen": 0.10369984366857739
+      },
+      "two_call": {},
+      "scratchpad": {
+        "chain_train": {
+          "bridge_written": 1.0,
+          "interventions": {
+            "normal": 1.0,
+            "cleared": 1.0,
+            "shuffled": 0.9995,
+            "true_bridge": 1.0
+          }
+        },
+        "chain_unseen": {
+          "bridge_written": 0.9958311620635748,
+          "interventions": {
+            "normal": 0.9958311620635748,
+            "cleared": 0.9953100573215217,
+            "shuffled": 0.9958311620635748,
+            "true_bridge": 0.9958311620635748
+          }
+        }
+      }
+    }
+  },
+  "table": {
+    "entries": 16384,
+    "used_frac": 0.24993896484375,
+    "effective_frac": 0.044735184942885683
+  }
+}

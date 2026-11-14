@@ -16,7 +16,9 @@ This package takes the next steps, one change at a time:
    chains where it is never taught, and whether reasoning can be kept in a
    small core while facts go to the table.
 
-No full-size training run has finished yet. See "Status".
+All five full-size runs completed on November 14, 2026. The supervised fact
+scratchpad works with multi-word names, but the mixed run does not show transfer
+of chaining from arithmetic and stories. See [the completed results](#completed-overnight-results-november-14).
 
 ## Setup
 
@@ -135,18 +137,21 @@ facts or any mix.
 ### Making the model use the scratchpad
 
 Small checks showed that writing the right intermediate answer is not
-enough: the model writes it and then answers without reading it. Two
-settings close the ways around, and both are on by default.
+enough: the model can write it and then answer without reading it. Two
+settings were introduced to encourage scratchpad use, and both are on by
+default. The completed full-size run confirms strong use on supervised facts,
+but not on arithmetic or stories.
 
 - **One block application per step** for arithmetic and facts (the graph
   experiment used two). With two, a step is deep enough to redo both
-  arithmetic operations from the question. Stories keep two, because reading
+  arithmetic operations from the question in a small check. One pass did not
+  enforce note use in the full-size arithmetic run. Stories keep two, because reading
   a relation out of a sentence takes more depth than one lookup.
 - **Hiding the subject, on facts.** For half of the two-step fact questions
   in training, the subject (the film's name) is hidden from the second step
   on. Those questions can only be answered from what step 1 wrote. Nothing is
-  hidden at test time. Arithmetic is left alone: one pass per step already
-  makes its scratchpad necessary, and hiding slowed it in a small check.
+  hidden at test time. Arithmetic is left alone because hiding slowed it in a
+  small check. That choice leaves a shortcut in the completed full-size run.
 
 `--n-passes 2` and `--no-hide-subject` turn them off.
 
@@ -233,10 +238,12 @@ Each run has one seed. Small gaps are noise.
 - **Stage 3 grades one-step questions at every step.** The other runs grade
   only the last step, as in the graph experiment. Without an intermediate
   answer for fact chains, nothing else would train the first step on facts.
-- **The control hides the subject too**, so it differs from stage 3 only in
-  lacking arithmetic and stories. It also shows whether that pressure alone
+- **The control hides the subject too** and uses the same dense-core width.
+  It also shows whether that pressure alone
   makes the model write the intermediate answer without being taught it. In
-  a small check it did not.
+  a small check it did not. This is not a perfectly matched optimization
+  control: the mixed model has a larger, task-separated vocabulary, and its
+  three task losses are averaged, whereas the control optimizes only facts.
 - **Stories may not need the scratchpad.** A two-sentence story can be read
   and combined inside one step, and in a small check clearing the scratchpad
   made no difference. Their role is to give the core reasoning that needs no
@@ -263,6 +270,48 @@ Each run has one seed. Small gaps are noise.
   stories and 1,919 test stories with two relations are used.
 
 ## Status
+
+### Completed overnight results (November 14)
+
+All five runs finished 64,000 steps, seed 0, between November 13 at 21:33 and
+November 14 at 03:55 Central. The complete [report](results/overnight-2026-11-14/report.md),
+[interpretation and next experiment](results/overnight-2026-11-14/README.md),
+and [manifest](results/overnight-2026-11-14/manifest.json) are committed alongside
+every run's configuration, 40 periodic evaluations, and final diagnostics.
+Checkpoints remain local and have SHA-256 hashes in the manifest.
+
+| Run / task | Main chain accuracy | Same, notes shuffled | Correct bridge written |
+|---|---:|---:|---:|
+| `maths` | 83.2% | 81.5% | 99.5% |
+| `clutrr` | 99.6% | 99.6% | 99.6% |
+| `facts` | 78.3% | 7.4% | 99.1% |
+| `mix_split` / maths | 88.5% | 87.9% | 99.5% |
+| `mix_split` / clutrr | 97.7% | 95.9% | 93.0% |
+| `mix_split` / facts | 24.6% | 17.9% | 4.2% |
+| `facts_unsupervised` | 24.2% | 20.2% | 1.6% |
+
+The main split is held-out second step for arithmetic and facts, and unseen
+stories for CLUTRR. Scores require every answer token to be correct.
+
+- Supervised multi-word fact chaining uses the scratchpad causally. Unseen
+  chains reach 95.9%, held-out second step 78.3%, and both facts held out of
+  chain training 68.5%. All constituent one-step facts were trained.
+- Mixed training does not demonstrate transfer: held-out second step is
+  24.6% versus 24.2% for the control, and unseen chains are lower (62.0%
+  versus 67.8%). This is one seed, not evidence of a general impossibility.
+- The intended source habit is weak: shuffling arithmetic and story notes
+  barely changes mixed-run answers. Correct note writing is not enough.
+- Supplying the correct fact bridge only lifts the mixed model to 34.7%,
+  whereas two separate calls reach 95.0% (93.0% with one outer step per call,
+  matching the native two-step block count). Both writing and using the
+  intermediate representation need attention.
+- Arithmetic and stories in `mix_split` work with the table off: 88.0% and
+  97.7% on unseen chains. Fact unseen chains drop from 62.0% to 14.2% when it
+  is disabled. This is useful task-dependent reliance, not a proof that all
+  factual knowledge lives in the table: one-step facts still score 51.2%
+  with it off.
+
+### Preflight and historical small checks
 
 November 13 Mac preflight: all 83 tests across the three packages pass on Apple
 GPU, including compiled training and checkpoint/resume. The review found and

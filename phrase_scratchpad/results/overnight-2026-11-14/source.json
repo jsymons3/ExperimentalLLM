@@ -1,0 +1,35 @@
+{
+  "started_at_chicago": "2026-11-13T21:33:13.611520-06:00",
+  "source_commit": "9a043378a1e0f0c807e3ee6d2e499f6ac81e12cf",
+  "claude_source_commit": "1360fb1e548d487a876f20c00f8ce669596315dd",
+  "source_branch": "codex/phrase-scratchpad-overnight",
+  "command": [
+    "/bin/bash",
+    "scripts/run_phrase_scratchpad.sh"
+  ],
+  "steps_per_run": 64000,
+  "runs": [
+    "maths",
+    "clutrr",
+    "facts",
+    "mix_split",
+    "facts_unsupervised"
+  ],
+  "plan_sha256": "ff3b5db7d7b2a13b84a849fe2a9ee76c0dcd439aa5b80440950d5f4981e59853",
+  "estimated_minutes": {
+    "maths": 46.785622381100744,
+    "clutrr": 69.53632508420851,
+    "facts": 41.41043319231054,
+    "mix_split": 182.33454608212534,
+    "facts_unsupervised": 44.48010807104875
+  },
+  "estimated_finish_at_chicago": "2026-11-14T03:57:46.433609-06:00",
+  "validation": "83 tests passed on Apple GPU; all five full-size compiled 200-step pilots and complete diagnostics passed; CLUTRR download hashes verified.",
+  "review_fix": "Preserve lookup query mean and variance when all questions in a batch have the table off; regression test reproduced the bug before the fix.",
+  "notes": [
+    "The five runs train independently from initialization.",
+    "mix_split is joint multitask training, not the later frozen-core curriculum.",
+    "Controlled Wikipedia-derived fact table and CLUTRR stories, not raw Wikipedia language modeling."
+  ],
+  "launcher_pid": 44851
+}
