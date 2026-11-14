@@ -233,10 +233,14 @@ Checked while building, on a Linux machine with no GPU:
 - **The code runs end to end** on a tiny random stand-in for Ouro
   (`python -m ouro_lookup.tiny`): the quick check, the timing, training with
   resume, evaluation and the report. 34 tests cover it.
+- **The training code runs on the real weights.** Three training steps of
+  the `table_adapters` run on the real model, in its stored 16-bit format, on
+  a batch of four questions: every gradient was finite and the loss went
+  from 10.1 to 7.7 to 2.6.
 - **The real frozen model learns through the table.** MLX is too slow to
-  train the real model on a CPU, so this was checked with a PyTorch copy of
-  the table attached to the original model: 16 made-up facts were recalled
-  100% with the table and 0% without after about 16 steps.
+  train the real model further on a CPU, so this was checked with a PyTorch
+  copy of the table attached to the original model: 16 made-up facts were
+  recalled 100% with the table and 0% without after about 16 steps.
 
 Not checked:
 
@@ -245,8 +249,8 @@ Not checked:
   are unknown until the sweep times them. Run steps 2 and 3 above first.
 - **The full-size result.** Whether the note or the loops chain held-out
   facts at 2,160 facts is what the runs are for.
-- **16-bit training on the real weights.** The 16-bit path runs and gives
-  finite gradients on the tiny model only.
+- **Long 16-bit training.** Three steps in 16-bit behaved; thousands have
+  not been tried. If a loss turns non-finite, rerun with `--dtype float32`.
 
 ## Files
 

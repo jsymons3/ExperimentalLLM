@@ -12,7 +12,9 @@ this port of the model are wrong.
 
 import argparse
 import hashlib
+import ssl
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -34,6 +36,25 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def open_url(request):
+    """Open a URL, falling back to the certifi certificates where Python has
+    none of its own (some macOS installs)."""
+    try:
+        return urllib.request.urlopen(request)
+    except urllib.error.URLError as error:
+        if not isinstance(error.reason, ssl.SSLCertVerificationError):
+            raise
+        try:
+            import certifi
+        except ImportError:
+            raise SystemExit(
+                "Python could not verify the download site's certificate. "
+                "Install certifi (pip install certifi) and run again."
+            ) from None
+        context = ssl.create_default_context(cafile=certifi.where())
+        return urllib.request.urlopen(request, context=context)
+
+
 def fetch(name, directory):
     """Download one file, resuming a partial one, and verify it."""
     target = directory / name
@@ -45,7 +66,7 @@ def fetch(name, directory):
     request = urllib.request.Request(url)
     if done:
         request.add_header("Range", f"bytes={done}-")
-    with urllib.request.urlopen(request) as response:
+    with open_url(request) as response:
         if done and response.status != 206:  # the server sent the whole file again
             done = 0
         total = done + int(response.headers.get("Content-Length", 0))
