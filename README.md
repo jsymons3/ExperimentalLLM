@@ -4,6 +4,7 @@ Small language-model experiments.
 
 | Experiment | Where | What it is |
 |---|---|---|
+| Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | The lookup table attached to Ouro-1.4B with the model's own weights frozen. Made-up facts test whether the table is used at all; held-out two-step questions compare a written note handed to a fresh computation with one pass through Ouro's own loops. Built and checked against the original model, not yet run at full size. |
 | Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | The scratchpad that worked on the graph task, extended to short phrases and tested in stages: arithmetic and family stories, real-name facts, then all three with reasoning kept in a small core and facts in the table. Built, not yet run at full size. |
 | Learned core / memory separation | [`core_memory/`](core_memory/README.md) | Natural-text recurrent LM with a dense core, learned expert memory, memory-off training and budgeted gating. Paired evaluations measure memory dependence. |
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. Includes a scratchpad variant that writes intermediate results in token form. MLX, runs on an Apple silicon laptop. |
