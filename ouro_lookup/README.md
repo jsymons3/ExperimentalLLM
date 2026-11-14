@@ -190,8 +190,10 @@ questions). Add them with `--only`.
   figure: a fact taught only as a one-step question was found again inside a
   two-step question, and reused. That is the result the scratchpad gave on
   the small graph.
-- "Held-out 2nd" in a written-note run mostly measures one-step recall,
-  because its second step is the fact's own question.
+- "Held-out 2nd" in a written-note run asks two things. Its second step is
+  the held-out fact's own one-step question, so it needs that fact recalled.
+  Its first step needs the note not to depend on the outer relation: the
+  right note has never been written next to that outer relation in training.
 - `latent` near zero on held-out groups while its "two separate questions"
   figure is high: the facts are there, and the continuous loops do not chain
   them. That would repeat the earlier finding at this scale.
@@ -221,6 +223,10 @@ questions). Add them with `--only`.
 - **Layer 12** is the middle of the stack. `--table-layers` moves the table
   or adds more.
 - **Step counts** are set by the time budget, never above 20,000.
+- **Learning rate.** The table's rate peaks at 0.0005, half of what the small
+  models used, and both rates fall in a straight line to a tenth of their
+  peak by the last step. In the checks below accuracy swung between
+  evaluations at a constant 0.001, and the lower rate learned just as fast.
 
 ## Status
 
@@ -232,15 +238,32 @@ Checked while building, on a Linux machine with no GPU:
   loop agrees to the same precision, and the top token agrees everywhere.
 - **The code runs end to end** on a tiny random stand-in for Ouro
   (`python -m ouro_lookup.tiny`): the quick check, the timing, training with
-  resume, evaluation and the report. 34 tests cover it.
+  resume, evaluation and the report. 35 tests cover it.
 - **The training code runs on the real weights.** Three training steps of
   the `table_adapters` run on the real model, in its stored 16-bit format, on
   a batch of four questions: every gradient was finite and the loss went
   from 10.1 to 7.7 to 2.6.
 - **The real frozen model learns through the table.** MLX is too slow to
   train the real model further on a CPU, so this was checked with a PyTorch
-  copy of the table attached to the original model: 16 made-up facts were
-  recalled 100% with the table and 0% without after about 16 steps.
+  copy of the table attached to the original model. 16 made-up facts were
+  recalled 100% with the table and 0% without after about 16 steps, at the
+  old learning rate and at the new one.
+- **A first look at the written note**, with the same PyTorch copy: Ouro
+  fully frozen, 32 facts about 16 people, 25 two-step training questions, 150
+  steps at the old learning rate. One run, with 11 to 14 questions per group:
+
+  | Questions | Note is right | Answer right | With shuffled notes |
+  |---|---|---|---|
+  | One-step facts | | 97% (0% with the table off) | |
+  | Two-step, trained | 96% | 92% | 12% |
+  | Two-step, unseen | 57% | 57% | 0% |
+  | Held-out 1st | 82% | 82% | 18% |
+  | Held-out 2nd | 23% | 23% | 8% |
+
+  This is a sign that the note route can work on a frozen model, not a
+  measurement. Training was unsettled: one-step recall read 59%, 59%, 84%,
+  62% and 97% at successive evaluations. The low held-out 2nd figure is three
+  right out of thirteen and may or may not hold up.
 
 Not checked:
 
@@ -266,4 +289,4 @@ Not checked:
 | `report.py` | `report.md` from finished runs |
 | `download.py` | Fetches and checks the model |
 | `tiny.py` | A tiny random stand-in for tests and dry runs |
-| `tests/` | 34 tests |
+| `tests/` | 35 tests |

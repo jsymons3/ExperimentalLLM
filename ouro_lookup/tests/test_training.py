@@ -10,7 +10,12 @@ from ouro_lookup.data import World, WordTokenizer
 from ouro_lookup.report import build_report
 from ouro_lookup.train import config_from_args, parse_args, run
 
-SMALL = dict(batch_size=24, warmup=20, lr=3e-3, eval_size=24, periodic_size=24, log_every=1000)
+# A constant, high learning rate: these runs last a few dozen steps. The
+# schedule the real runs use has its own test below.
+SMALL = dict(
+    batch_size=24, warmup=20, lr=3e-3, lr_final=1.0, eval_size=24, periodic_size=24,
+    log_every=1000,
+)
 
 
 def small_config(tiny_dir, variant, steps, **overrides):
@@ -82,15 +87,28 @@ def test_timing_mode_writes_a_timing_file(tiny_dir, tmp_path):
     assert (tmp_path / "t" / "timing.json").exists() and not (tmp_path / "t" / "final.json").exists()
 
 
+def test_learning_rate_ramps_up_then_falls_to_a_tenth():
+    from ouro_lookup.train import learning_rate
+
+    cfg = build_config("table", "smoke", steps=1000, warmup=100)
+    rate = lambda step: float(learning_rate(cfg, 1e-3)(mx.array(step)).item())
+    assert rate(0) == pytest.approx(1e-5) and rate(49) == pytest.approx(5e-4)
+    assert rate(100) == pytest.approx(1e-3) and rate(550) == pytest.approx(5.5e-4)
+    assert rate(1000) == pytest.approx(1e-4) and rate(5000) == pytest.approx(1e-4)
+    flat = build_config("table", "smoke", steps=1000, warmup=100, lr_final=1.0)
+    assert float(learning_rate(flat, 1e-3)(mx.array(900)).item()) == pytest.approx(1e-3)
+
+
 def test_flags_reach_the_configuration(tiny_dir):
     cfg = config_from_args(parse_args([
         "--variant", "latent", "--preset", "pilot", "--out", "x", "--weights", str(tiny_dir),
         "--n-people", "20", "--n-subkeys", "32", "--table-layers", "0", "2", "--teach-loop", "3",
-        "--adapter-rank", "2", "--lr", "0.01",
+        "--adapter-rank", "2", "--lr", "0.01", "--lr-final", "0.5",
     ]))
     assert cfg.world == {"n_people": 20, "n_relations": 4}
     assert cfg.addon_config().table_layers == (0, 2) and cfg.addon_config().adapter_rank == 2
     assert cfg.teach_loop == 3 and cfg.lr == 0.01 and cfg.chain_mode == "latent"
+    assert cfg.lr_final == 0.5
 
 
 def test_every_variant_builds():

@@ -93,9 +93,12 @@ class RunConfig:
     steps: int = 8000
     batch_size: int = 64  # questions per step
     two_hop_frac: float = 0.5
-    lr: float = 1e-3  # table
+    lr: float = 5e-4  # table, at its peak
     adapter_lr: float = 2e-4
     warmup: int = 200
+    # Both rates fall in a straight line to this share of their peak by the
+    # last step, so that the final evaluation measures a settled model.
+    lr_final: float = 0.1
     weight_decay: float = 0.1  # table only
     grad_clip: float = 1.0
     eval_every: int = 0  # 0: forty evaluations per run

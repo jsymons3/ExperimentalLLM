@@ -41,7 +41,8 @@ DTYPES = {"stored": None, "float16": mx.float16, "float32": mx.float32}
 ADDON_FLAGS = ("n_subkeys", "lookup_heads", "top_k", "d_key", "adapter_rank", "adapter_scale")
 TRAIN_FLAGS = (
     "weights", "dtype", "loops", "teach_loop", "teach_weight", "adapters_learn", "steps",
-    "batch_size", "two_hop_frac", "lr", "adapter_lr", "warmup", "weight_decay", "grad_clip",
+    "batch_size", "two_hop_frac", "lr", "adapter_lr", "lr_final", "warmup", "weight_decay",
+    "grad_clip",
     "eval_every", "log_every", "eval_size", "periodic_size",
 )
 
@@ -85,6 +86,7 @@ def parse_args(argv=None):
     t.add_argument("--two-hop-frac", type=float)
     t.add_argument("--lr", type=float, help="learning rate of the table")
     t.add_argument("--adapter-lr", type=float)
+    t.add_argument("--lr-final", type=float, help="share of the peak rate left at the last step")
     t.add_argument("--warmup", type=int)
     t.add_argument("--weight-decay", type=float, help="of the table")
     t.add_argument("--grad-clip", type=float)
@@ -121,15 +123,26 @@ def build_run(cfg):
     return world, model
 
 
+def learning_rate(cfg, peak):
+    """The rate at each step: a straight ramp up over the warm-up, then a
+    straight fall to ``lr_final`` of the peak at the last step."""
+    decay_steps = max(1, cfg.steps - cfg.warmup)
+
+    def rate(step):
+        ramp = mx.minimum(1.0, (step + 1) / cfg.warmup)
+        done = mx.clip((step - cfg.warmup) / decay_steps, 0.0, 1.0)
+        return peak * ramp * (1.0 - (1.0 - cfg.lr_final) * done)
+
+    return rate
+
+
 def build_optimizers(cfg):
     """One optimizer for the table and one for the adapters."""
-
-    def schedule(peak):
-        return lambda step: peak * mx.minimum(1.0, (step + 1) / cfg.warmup)
-
     return {
-        "tables": optim.AdamW(learning_rate=schedule(cfg.lr), weight_decay=cfg.weight_decay),
-        "adapters": optim.AdamW(learning_rate=schedule(cfg.adapter_lr), weight_decay=0.0),
+        "tables": optim.AdamW(
+            learning_rate=learning_rate(cfg, cfg.lr), weight_decay=cfg.weight_decay
+        ),
+        "adapters": optim.AdamW(learning_rate=learning_rate(cfg, cfg.adapter_lr), weight_decay=0.0),
     }
 
 
