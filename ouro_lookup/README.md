@@ -22,6 +22,11 @@ route fails on new chains despite recalling their facts. See the
 [results and interpretation](results/mac-2026-11-14/README.md) and
 [full diagnostic report](results/mac-2026-11-14/report.md).
 
+The next run is [the two-day run](TWODAY.md): removing eight of Ouro's layers
+and training a table, a small dense layer or adapters to take over what they
+knew, then adding and changing facts without revision. It is built and
+checked at small size, and not yet run on an Apple GPU.
+
 ## Setup
 
 Apple silicon Mac, from the repository root, in the existing environment:
@@ -351,7 +356,7 @@ three: four full-size runs finished in stored bfloat16 with final diagnostics.
 | File | What it is |
 |---|---|
 | `ouro.py` | Ouro in MLX, loading the published weights |
-| `model.py` | The table and adapters attached to it |
+| `model.py` | The table and adapters attached to it; removed layers and what stands in for them |
 | `data.py` | The made-up facts, the two-step questions and the split |
 | `configs.py` | The runs and their settings |
 | `train.py` | One training run, with checkpoints and resume |
@@ -360,4 +365,5 @@ three: four full-size runs finished in stored bfloat16 with final diagnostics.
 | `report.py` | `report.md` from finished runs |
 | `download.py` | Fetches and checks the model |
 | `tiny.py` | A tiny random stand-in for tests and dry runs |
-| `tests/` | 38 tests |
+| `takeover.py`, `flex.py`, `text.py`, `probes.py`, `twoday.py`, `twoday_report.py` | The two-day run: see [TWODAY.md](TWODAY.md) |
+| `tests/` | 58 tests |

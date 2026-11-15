@@ -77,19 +77,28 @@ def rotate(x, cos, sin):
     return mx.concatenate([a * cos - b * sin, b * cos + a * sin], axis=-1)
 
 
+# Sequences up to this length use the explicit calculation below. The failure
+# it avoids was seen on questions of up to nine tokens; whether the fused
+# kernel can be trained through at longer lengths on an Apple GPU was never
+# tested, so every length the experiments train on stays on the explicit path.
+# Its attention matrices are small at these lengths.
+EXPLICIT_UP_TO = 256
+
+
 def causal_attention(q, k, v):
-    """Attention with a differentiable path for short training questions.
+    """Attention with a differentiable path for training sequences.
 
     MLX 0.32.4 selects a Metal vector kernel for short sequences with Ouro's
     head width. That kernel cannot supply the logsumexp needed by its VJP,
-    even with force_fused=True. Materialising these tiny attention matrices
-    avoids that path; longer sequences keep the fused implementation.
+    even with force_fused=True. Materialising the attention matrices avoids
+    that path; sequences longer than ``EXPLICIT_UP_TO`` keep the fused
+    implementation.
     """
     length = q.shape[-2]
     scale = q.shape[-1] ** -0.5
     # Small test-model heads already take MLX's differentiable fallback.
     # Keep that path unchanged; the affected vector kernels use wider heads.
-    if length <= 16 and q.shape[-1] >= 64:
+    if length <= EXPLICIT_UP_TO and q.shape[-1] >= 64:
         scores = (q.astype(mx.float32) * scale) @ k.astype(mx.float32).swapaxes(-1, -2)
         if length > 1:
             allowed = mx.arange(length)[:, None] >= mx.arange(length)[None, :]

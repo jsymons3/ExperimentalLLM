@@ -2,4 +2,5 @@ mlx>=0.30
 numpy
 tokenizers
 certifi
+pyarrow
 pytest
