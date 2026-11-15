@@ -5,7 +5,7 @@ Small language-model experiments.
 | Experiment | Where | What it is |
 |---|---|---|
 | Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | The lookup table attached to Ouro-1.4B with the model's own weights frozen. Made-up facts test whether the table is used at all; held-out two-step questions compare a written note handed to a fresh computation with one pass through Ouro's own loops. Built and checked against the original model, not yet run at full size. |
-| Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | Five full-size runs complete. Supervised fact chains use a multi-word scratchpad; transfer from arithmetic and family stories did not beat the facts-only control. |
+| Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | Five full-size runs complete. Supervised fact chains use a multi-word scratchpad; transfer from arithmetic and family stories did not beat the facts-only control. A follow-up reading test (known facts also asked through the note) is set up and not yet run at full size. |
 | Learned core / memory separation | [`core_memory/`](core_memory/README.md) | Natural-text recurrent LM with a dense core, learned expert memory, memory-off training and budgeted gating. Paired evaluations measure memory dependence. |
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. Includes a scratchpad variant that writes intermediate results in token form. MLX, runs on an Apple silicon laptop. |
 | Diffusion LM with a global workspace | `hiPhiLLM.ipynb` | Described below. JAX/Flax notebook. |

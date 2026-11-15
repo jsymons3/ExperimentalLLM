@@ -107,6 +107,52 @@ def test_fact_chains_read_as_expected():
     assert task.decode(second[0]) == f"{task.decode(items.bridge[0])} {task.decode(items.suffix[0])}"
 
 
+def test_a_fact_asked_through_the_note_uses_only_its_own_label():
+    task = facts_task(n_people=80, eval_size=20)
+    rows = {(s, f"[{r}]"): o for s, r, o in load_facts()}
+    rng = np.random.default_rng(0)
+    ids = np.flatnonzero(task.readable)
+    assert 0 < len(ids) < len(task.subject)  # second-step facts, not first-step ones
+    assert set(task.chain_second) == set(ids)
+    context = task.contexts(rng, ids)
+    items = task.reader_items(ids, context)
+    assert items.given.all() and not items.chain.any() and not items.bridge.any()
+    # The start of the question comes from a training chain's first step, and
+    # is never a first step that leads to this fact: that would be a real
+    # chain, perhaps a test chain, with its answer attached.
+    assert set(context) <= set(task.chain_first[task.train_chains])
+    assert not (task.answer[context] == task.subject[ids]).all(axis=1).any()
+    for q, note, answer, hide, fact, start in zip(
+        items.question, items.note, items.answer, items.subject_len, ids, context
+    ):
+        subject, r1, r2 = (task.decode(q).replace(" [", "|[")).split("|")
+        assert subject == task.decode(task.subject[start]) and len(subject.split()) == hide
+        assert r1 == task.decode(task.suffix[start]) and r2 == task.decode(task.suffix[fact])
+        assert rows[(task.decode(note), r2)] == task.decode(answer)  # the note's own fact
+        assert rows[(subject, r1)] != task.decode(note)
+
+
+def test_asking_through_the_note_replaces_questions_without_adding_any():
+    task = facts_task(n_people=80, eval_size=20)
+    plain = task.sample(np.random.default_rng(3), 64, 32)
+    assert not plain.given.any() and not plain.note.any()
+    mixed = task.sample(np.random.default_rng(3), 64, 32, reader_frac=0.5)
+    assert len(mixed) == len(plain) == 96
+    assert mixed.chain.sum() == 32 and not (mixed.chain & mixed.given).any()
+    assert 0 < mixed.given.sum() < 64
+    # The same facts are presented, one-step label for one-step label.
+    def labels(items):
+        rows = np.concatenate([items.first, items.answer], axis=1)[~items.chain]
+        return sorted(map(bytes, rows))
+
+    assert labels(mixed) == labels(plain)
+    # Only facts that can be a second step go through the note.
+    subjects = {bytes(row) for row in task.subject[task.readable]}
+    assert all(bytes(note) in subjects for note in mixed.note[mixed.given])
+    # The story task has no one-step facts to ask this way.
+    assert not hasattr(StoryTask, "reader_items")
+
+
 def test_guessing_baseline_is_between_zero_and_one_and_not_trivial():
     task = facts_task(n_people=80, eval_size=200)
     baseline = task.majority_baseline(task.eval_sets["chain_unseen"])

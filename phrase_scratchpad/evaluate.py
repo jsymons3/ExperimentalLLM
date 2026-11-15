@@ -37,17 +37,25 @@ def run_model(model, batch, table=True, n_passes=None, **kwargs):
     return model(batch, table_on=table_on, n_passes=n_passes, **kwargs)
 
 
-def predict(model, questions, steps=None, batch_size=1024, slot_override=None, **how):
+def predict(
+    model, questions, steps=None, batch_size=1024, slot_override=None, hide_prefix=None,
+    note=None, **how,
+):
     """The K predicted tokens for each question: (n, K).
 
     ``how`` is ``settings(task, table)``: the task's block applications per
-    step, and whether the lookup is on.
+    step, and whether the lookup is on. ``hide_prefix`` (n,) hides that many
+    leading question tokens after step one. ``note`` (n, K) is put in the
+    scratchpad after step one in place of what the model wrote.
     """
     out = []
     for rows in _batches(len(questions), batch_size):
+        batch = mx.array(questions[rows])
         override = None if slot_override is None else mx.array(slot_override[rows])
+        hide = None if hide_prefix is None else mx.array(hide_prefix[rows])
+        given = None if note is None else (mx.array(note[rows]), mx.ones((batch.shape[0],)))
         logits = run_model(
-            model, mx.array(questions[rows]), steps=steps, slot_override=override, **how
+            model, batch, steps=steps, slot_override=override, hide_prefix=hide, note=given, **how
         )
         out.append(np.array(mx.argmax(logits, axis=-1)))
     return np.concatenate(out)
@@ -98,6 +106,16 @@ def scratchpad_report(model, task, items, table=True, batch_size=1024):
     the learned empty scratchpad, another question's scratchpad, or the true
     bridge. The last uses the answer key, so it is a diagnostic, never a
     score.
+
+    ``answer_written`` is the share whose scratchpad already holds the final
+    answer after step 1: the question answered in one step, with the
+    scratchpad only carrying the result forward. ``subject_hidden`` is
+    accuracy with the question's subject hidden after step 1, as it is for
+    some training questions. ``fresh_question`` is
+    accuracy when the note the model wrote is put into a new one-step
+    question about the remaining relation and that is asked on its own: the
+    handoff done by rewriting the question instead of by reading the
+    scratchpad.
     """
     questions = items.question
     rng = np.random.default_rng(0)
@@ -117,16 +135,60 @@ def scratchpad_report(model, task, items, table=True, batch_size=1024):
         "shuffled": slots[rng.permutation(len(slots))],
         "true_bridge": embed[items.bridge],
     }
-    return {
+    how = settings(task, table)
+    report = {
         "bridge_written": exact(written, items.bridge),
+        "answer_written": exact(written, items.answer),
         "interventions": {
-            name: exact(
-                predict(model, questions, 2, batch_size, override, **settings(task, table)),
-                items.answer,
-            )
+            name: exact(predict(model, questions, 2, batch_size, override, **how), items.answer)
             for name, override in conditions.items()
         },
     }
+    if items.subject_len.any():
+        hidden = predict(model, questions, 2, batch_size, hide_prefix=items.subject_len, **how)
+        report["subject_hidden"] = exact(hidden, items.answer)
+    if items.first is not None:
+        fresh = task.second_questions(written, items)
+        report["fresh_question"] = exact(predict(model, fresh, **how), items.answer)
+    return report
+
+
+def reader_report(model, task, table=True):
+    """One-step facts asked through the scratchpad.
+
+    For the facts that can be a second step: accuracy as an ordinary
+    question, and when the fact's subject is given as the note of an
+    unrelated two-step question, with that question's subject hidden after
+    step 1 and with it left in view. Facts never used in a training chain
+    are the ones a held-out second step needs read this way. Returns None
+    for a task that is not built from one-step questions.
+    """
+    if not hasattr(task, "reader_items"):
+        return None
+    how = settings(task, table)
+    rng = np.random.default_rng(0)
+    out = {}
+    for name, ids in task.eval_facts.items():
+        ids = ids[task.readable[ids]]
+        if not len(ids):
+            continue
+        plain = task.fact_items(ids)
+        items = task.reader_items(ids, task.contexts(rng, ids))
+
+        def through_note(hide):
+            guess = predict(
+                model, items.question, 2, note=items.note,
+                hide_prefix=items.subject_len if hide else None, **how,
+            )
+            return exact(guess, items.answer)
+
+        out[name] = {
+            "n": int(len(ids)),
+            "as_a_question": exact(predict(model, plain.question, **how), plain.answer),
+            "through_note": through_note(True),
+            "through_note_question_shown": through_note(False),
+        }
+    return out
 
 
 def two_call(model, task, items, steps, table=True):
@@ -199,12 +261,14 @@ def full_evaluation(model, suite, eval_steps, table_off=()):
                     if items.first is not None
                 },
                 "scratchpad": None,
+                "reader": None,
             }
             if cfg.scratchpad:
                 entry["scratchpad"] = {
                     name: scratchpad_report(model, task, items, table)
                     for name, items in chains.items()
                 }
+                entry["reader"] = reader_report(model, task, table)
             result["tasks"][task.name] = entry
         result["table"] = table_usage(model, suite, table_off)
     return result

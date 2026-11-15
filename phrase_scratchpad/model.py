@@ -222,6 +222,7 @@ class PhraseModel(nn.Module):
         table_on=None,
         hide_prefix=None,
         n_passes=None,
+        note=None,
     ):
         """question: (B, L) token ids, padded at the end. Returns logits
         (B, K, n_output) for the answer's K tokens.
@@ -234,7 +235,11 @@ class PhraseModel(nn.Module):
         ``hide_prefix`` (B,) hides that many leading question tokens from the
         second step on, so those questions can only be answered through the
         scratchpad. It is a training aid. ``n_passes`` overrides the number
-        of block applications per step for this call.
+        of block applications per step for this call. ``note`` is a pair
+        (tokens (B, K), given (B,) of 0/1): for the questions marked, the
+        scratchpad that step 2 reads holds exactly those tokens, in place of
+        what step 1 wrote. It is how a one-step fact is asked through the
+        scratchpad, in training as well as evaluation.
         """
         cfg = self.cfg
         B, L = question.shape
@@ -278,6 +283,9 @@ class PhraseModel(nn.Module):
                 slots = self.token_form(logits)  # full overwrite
                 if t == 0 and slot_override is not None:
                     slots = slot_override
+                if t == 0 and note is not None:
+                    tokens, given = note
+                    slots = mx.where(given[:, None, None] > 0, self.embed.weight[tokens], slots)
                 trace["slots"].append(slots)
         return (logits, trace) if return_trace else logits
 

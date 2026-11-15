@@ -171,3 +171,37 @@ def test_hidden_subject_can_only_matter_through_the_scratchpad():
     np.testing.assert_allclose(np.array(a[0]), np.array(b[0]), atol=1e-5)
     c = model(other, steps=2, slot_override=fixed)
     assert not np.allclose(np.array(a[0]), np.array(c[0]), atol=1e-4)
+
+
+def test_a_given_note_replaces_what_step_one_wrote():
+    model = make()
+    tokens = mx.array([[4, 9, 0], [2, 0, 0]])
+    given = mx.array([1.0, 0.0])  # only question 0 gets the note
+    logits, trace = model(QUESTION, steps=2, return_trace=True, note=(tokens, given))
+    plain, plain_trace = model(QUESTION, steps=2, return_trace=True)
+    # The scratchpad holds exactly those tokens, as if step 1 had predicted them.
+    np.testing.assert_allclose(
+        np.array(trace["slots"][0][0]), np.array(model.embed.weight[tokens[0]]), atol=1e-6
+    )
+    forced = mx.stack([model.embed.weight[tokens[0]], plain_trace["slots"][0][1]])
+    same = model(QUESTION, steps=2, slot_override=forced)
+    np.testing.assert_allclose(np.array(logits), np.array(same), atol=1e-5)
+    # The other question is untouched.
+    np.testing.assert_allclose(np.array(logits[1]), np.array(plain[1]), atol=1e-5)
+    assert not np.allclose(np.array(logits[0]), np.array(plain[0]), atol=1e-4)
+
+    # With a given note and the whole question hidden after step 1, nothing
+    # of the question reaches the answer.
+    note = (tokens, mx.array([1.0, 1.0]))
+    hide = mx.array([6, 6])
+    a = model(QUESTION, steps=2, note=note, hide_prefix=hide)
+    other = mx.array([[9, 10, 21, 22, 0, 0], [11, 8, 9, 23, 24, 0]])
+    b = model(other, steps=2, note=note, hide_prefix=hide)
+    np.testing.assert_allclose(np.array(a), np.array(b), atol=1e-5)
+
+    # It is allowed in training, unlike a slot override, and trains the
+    # embeddings of the note's tokens.
+    model.train()
+    grads = gradients(model, note=note, hide_prefix=hide)
+    assert all(np.isfinite(np.array(g)).all() for g in grads.values())
+    assert np.abs(np.array(grads["embed.weight"])[4]).sum() > 0

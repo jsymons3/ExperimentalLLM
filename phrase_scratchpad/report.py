@@ -34,12 +34,31 @@ def pct(value):
     return "-" if value is None else f"{100 * value:.1f}%"
 
 
+def spread(values):
+    """The mean of a few runs' values, with their range if there are several."""
+    values = [v for v in values if v is not None]
+    if not values:
+        return "-"
+    mean = pct(sum(values) / len(values))
+    if len(values) == 1:
+        return mean
+    return f"{mean} ({100 * min(values):.1f} to {100 * max(values):.1f})"
+
+
 def load_runs(root):
-    runs = {}
-    for path in sorted(Path(root).glob("*/final.json")):
-        final = json.loads(path.read_text())
-        runs[final["variant"]] = final
-    return {v: runs[v] for v in VARIANTS if v in runs}
+    """{label: final.json contents}, in the order of VARIANTS and then seed.
+
+    The label is the run's name, with its seed added when the directory
+    holds more than seed 0.
+    """
+    finals = [json.loads(path.read_text()) for path in sorted(Path(root).glob("*/final.json"))]
+    finals = [f for f in finals if f["variant"] in VARIANTS]
+    order = list(VARIANTS)
+    finals.sort(key=lambda f: (order.index(f["variant"]), f["seed"]))
+    seeded = any(f["seed"] != 0 for f in finals)
+    return {
+        (f"{f['variant']}, seed {f['seed']}" if seeded else f["variant"]): f for f in finals
+    }
 
 
 def build_report(root):
@@ -72,25 +91,31 @@ def build_report(root):
         "",
     ]
 
-    rows = []
+    rows, extra = [], False
     for v, name, entry in rows_by_task:
         split = hardest(entry)
         report = (entry.get("scratchpad") or {}).get(split)
         if report:
             i = report["interventions"]
+            extra = extra or "fresh_question" in report or "subject_hidden" in report
             rows.append(
                 [v, name, LABELS[split], pct(report["bridge_written"])]
                 + [pct(i[k]) for k in ("normal", "cleared", "shuffled", "true_bridge")]
+                + [pct(report.get("answer_written")), pct(report.get("subject_hidden")),
+                   pct(report.get("fresh_question"))]
             )
     if rows:
+        head = ["run", "task", "questions", "bridge written at step 1", "normal",
+                "scratchpad cleared", "scratchpad shuffled", "true bridge supplied"]
+        if extra:
+            head += ["final answer written at step 1", "subject hidden after step 1",
+                     "own note in a fresh question"]
+        else:
+            rows = [row[:-3] for row in rows]
         out += [
             "## Is the scratchpad used?",
             "",
-            table(
-                ["run", "task", "questions", "bridge written at step 1", "normal",
-                 "scratchpad cleared", "scratchpad shuffled", "true bridge supplied"],
-                rows,
-            ),
+            table(head, rows),
             "",
             "\"Bridge written\" is the share of chains whose scratchpad holds "
             "exactly the intermediate answer after step 1. The other columns are "
@@ -98,6 +123,48 @@ def build_report(root):
             "through the scratchpad, clearing or shuffling it should destroy "
             "accuracy. Supplying the true bridge uses the answer key and is a "
             "diagnostic, not a score.",
+            "",
+        ]
+        if extra:
+            out += [
+                "\"Final answer written at step 1\" is the share of chains whose "
+                "scratchpad already holds the final answer after step 1: the chain "
+                "answered in one step, with the scratchpad only carrying the result "
+                "forward. \"Subject hidden\" hides the question's subject from step 2 on, as "
+                "half the training fact chains do. \"Own note in a fresh question\" "
+                "takes the note the model wrote, writes it into a new one-step "
+                "question about the remaining relation, and asks that on its own: "
+                "the handoff done by rewriting the question in code, not by "
+                "reading the scratchpad.",
+                "",
+            ]
+
+    rows = []
+    for v, name, entry in rows_by_task:
+        for split, label in (("one_hop", "used in training chains"),
+                             ("one_hop_held", "never in a training chain")):
+            r = (entry.get("reader") or {}).get(split)
+            if r:
+                rows.append(
+                    [v, name, label, f"{r['n']:,}", pct(r["as_a_question"]),
+                     pct(r["through_note"]), pct(r["through_note_question_shown"])]
+                )
+    if rows:
+        out += [
+            "## Reading a known fact from the note",
+            "",
+            table(
+                ["run", "task", "facts", "count", "asked as a question",
+                 "asked through the note", "through the note, question in view"],
+                rows,
+            ),
+            "",
+            "One-step facts that can be the second step of a chain. \"Through the "
+            "note\" puts the fact's subject in the scratchpad of an unrelated "
+            "two-step question and asks for the fact's answer, first with that "
+            "question's subject hidden after step 1 and then with it in view. A "
+            "held-out second step needs a fact from the \"never in a training "
+            "chain\" rows to be read this way.",
             "",
         ]
 
@@ -163,13 +230,78 @@ def build_report(root):
         "",
     ]
 
+    by_variant = {}
+    for final in runs.values():
+        by_variant.setdefault(final["variant"], []).append(final)
+
+    def mean(values):
+        values = [v for v in values if v is not None]
+        return sum(values) / len(values) if values else None
+
+    def entries(variant, task):
+        return [f["tasks"][task] for f in by_variant.get(variant, []) if task in f["tasks"]]
+
     def acc(variant, task, split=MAIN):
-        entry = runs.get(variant, {}).get("tasks", {}).get(task)
-        return None if entry is None else entry["accuracy"].get(split)
+        return mean([e["accuracy"].get(split) for e in entries(variant, task)])
+
+    def notes(variant, task, split):
+        return [(e.get("scratchpad") or {}).get(split) or {} for e in entries(variant, task)]
 
     def written(variant, task, split="chain_unseen"):
-        entry = runs.get(variant, {}).get("tasks", {}).get(task) or {}
-        return ((entry.get("scratchpad") or {}).get(split) or {}).get("bridge_written")
+        return mean([n.get("bridge_written") for n in notes(variant, task, split)])
+
+    reading = [v for v in by_variant if v.endswith("_reader")]
+    if reading:
+        rows = []
+        for variant in by_variant:
+            if not entries(variant, "facts"):
+                continue
+            pad = notes(variant, "facts", MAIN)
+            held = [(e.get("reader") or {}).get("one_hop_held") or {} for e in entries(variant, "facts")]
+            rows.append(
+                [
+                    variant,
+                    len(by_variant[variant]),
+                    spread([e["accuracy"].get(MAIN) for e in entries(variant, "facts")]),
+                    spread([n.get("bridge_written") for n in pad]),
+                    spread([(n.get("interventions") or {}).get("true_bridge") for n in pad]),
+                    spread([(n.get("interventions") or {}).get("shuffled") for n in pad]),
+                    spread([n.get("subject_hidden") for n in pad]),
+                    spread([n.get("fresh_question") for n in pad]),
+                    spread([h.get("through_note") for h in held]),
+                ]
+            )
+        out += [
+            "## The reading test",
+            "",
+            table(
+                ["run", "seeds", "held-out 2nd", "bridge written", "true bridge supplied",
+                 "scratchpad shuffled", "subject hidden after step 1",
+                 "own note in a fresh question", "held-out fact read through the note"],
+                rows,
+            ),
+            "",
+            "Fact chains whose second fact never appeared in a training chain; the "
+            "mean over seeds, with the range. A `_reader` run is the run above it "
+            "with half of its one-step questions about second-step facts asked "
+            "through the note instead. It sees each fact as often and sees no "
+            "extra chain. The last column is the direct check that the teaching "
+            "took: one-step facts never used in a training chain, asked through "
+            "the note.",
+            "",
+            "- Reading is fixed if, with the intermediate answer taught, "
+            "`facts_reader` raises \"true bridge supplied\" and held-out 2nd "
+            "toward \"own note in a fresh question\".",
+            "- If `facts` scores far higher with the subject hidden than without, "
+            "its note is read correctly when nothing else is in view, and the loss "
+            "comes from the question still being visible at step 2.",
+            "- The note appears by itself if `facts_unsupervised_reader` writes "
+            "the bridge, where no run was ever taught to, and its held-out 2nd "
+            "rises above `facts_unsupervised` while shuffling still destroys it. A "
+            "high \"true bridge supplied\" with the bridge not written means step 2 "
+            "can read a name and step 1 does not supply one.",
+            "",
+        ]
 
     out += ["## Readout", ""]
 
@@ -208,11 +340,25 @@ def build_report(root):
             acc(variant, "facts"),
             written(variant, "facts"),
         )
+    for variant, label in (
+        ("facts_reader", "the intermediate answer taught"),
+        ("facts_unsupervised_reader", "no intermediate answer taught"),
+    ):
+        line(
+            "Reading test, facts with " + label + " and known facts also asked "
+            "through the note: unseen chains {}, held-out 2nd {}, bridge written on "
+            "unseen chains {}.",
+            acc(variant, "facts", "chain_unseen"),
+            acc(variant, "facts"),
+            written(variant, "facts"),
+        )
+    several = any(len(finals) > 1 for finals in by_variant.values())
     out += [
         "",
         "Stage 3 worked if its fact chains beat the control and the bridge is "
-        "written for fact chains, where it was never taught. One seed per run: "
-        "small gaps are noise.",
+        "written for fact chains, where it was never taught. "
+        + ("These lines give the mean over seeds." if several
+           else "One seed per run: small gaps are noise."),
     ]
     return "\n".join(out) + "\n"
 

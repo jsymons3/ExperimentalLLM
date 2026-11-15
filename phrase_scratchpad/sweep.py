@@ -10,6 +10,10 @@
    already finished. Re-run the same command to pick up where it stopped.
 4. Writes report.md after every finished run.
 
+``--reading`` runs the reading test instead of the three stages, and
+``--seeds 0 1`` repeats every run with each seed (all runs with the first seed
+come first).
+
 Arguments this script does not recognise are passed through to every training
 run, for example ``--lr 3e-4`` or ``--n-people 800``.
 """
@@ -40,6 +44,16 @@ RUNS = [
 # Left out by default, because every extra run shortens all of them.
 EXTRAS = ["mix"]  # stage 3 with the table always on: does the switch matter?
 BASELINES = ["maths_plain", "clutrr_plain", "facts_plain"]  # no scratchpad
+# The reading test: the taught-note run and the untaught control, each next
+# to the same run with known facts also asked through the note. The new runs
+# come first in each pair.
+READING = ["facts_reader", "facts", "facts_unsupervised_reader", "facts_unsupervised"]
+KNOWN = list(dict.fromkeys(RUNS + EXTRAS + BASELINES + READING))
+
+
+def run_name(variant, seed, seeds):
+    """The directory of one run. A sweep with seed 0 alone keeps bare names."""
+    return variant if list(seeds) == [0] else f"{variant}_s{seed}"
 
 
 def train_command(preset, variant, out, extra):
@@ -76,15 +90,22 @@ def main(argv=None):
     p.add_argument("--only", nargs="+", metavar="RUN", help="run only these, in this order")
     p.add_argument("--with-mix", action="store_true", help="add stage 3 with the table always on")
     p.add_argument("--with-baselines", action="store_true", help="add the no-scratchpad runs")
+    p.add_argument("--reading", action="store_true", help="run the reading test instead")
+    p.add_argument("--seeds", type=int, nargs="+", default=[0], metavar="SEED")
     p.add_argument("--estimate-only", action="store_true", help="time, print the estimate, stop")
     args, extra = p.parse_known_args(argv)
 
     runs = args.only or (
-        RUNS + (EXTRAS if args.with_mix else []) + (BASELINES if args.with_baselines else [])
+        READING
+        if args.reading
+        else RUNS + (EXTRAS if args.with_mix else []) + (BASELINES if args.with_baselines else [])
     )
-    unknown = [r for r in runs if r not in RUNS + EXTRAS + BASELINES]
+    unknown = [r for r in runs if r not in KNOWN]
     if unknown:
-        raise SystemExit(f"unknown runs {unknown}; choose from {RUNS + EXTRAS + BASELINES}")
+        raise SystemExit(f"unknown runs {unknown}; choose from {KNOWN}")
+    seeds = list(dict.fromkeys(args.seeds))
+    # Every run with the first seed, then every run with the next.
+    pairs = [(variant, seed) for seed in seeds for variant in runs]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     # Hold this for the sweep's lifetime so the same sweep cannot start twice.
@@ -105,6 +126,8 @@ def main(argv=None):
         "extra": extra,
         "budget": {"hours": args.hours, "steps": args.steps, "max_steps": args.max_steps},
     }
+    if seeds != [0]:
+        signature["seeds"] = seeds
     if plan_path.exists():
         plan = json.loads(plan_path.read_text())
         if plan["signature"] != signature:
@@ -115,7 +138,6 @@ def main(argv=None):
     else:
         started = time.perf_counter()
         timings = pilot(args.preset, out, args.pilot_steps, extra, runs)
-        pairs = [(variant, 0) for variant in runs]
         if args.steps:
             plan = {"steps": args.steps, "source": "--steps"}
         else:
@@ -133,30 +155,33 @@ def main(argv=None):
         plan_path.write_text(json.dumps(plan, indent=2))
 
     steps = plan["steps"]
-    print(f"\nplan: {steps} steps for each of {len(runs)} runs ({plan['source']})")
+    print(f"\nplan: {steps} steps for each of {len(pairs)} runs ({plan['source']})")
+    each = f" for each of seeds {seeds}" if len(seeds) > 1 else ""
     for variant in runs:
-        print(f"  {variant:20s} about {plan['estimated_minutes'][variant]:6.1f} min")
-    total = sum(plan["estimated_minutes"][v] for v in runs)
-    print(f"  total                about {total / 60:6.1f} hours, in the order listed")
+        print(f"  {variant:26s} about {plan['estimated_minutes'][variant]:6.1f} min{each}")
+    total = sum(plan["estimated_minutes"][v] for v, _ in pairs)
+    print(f"  {'total':26s} about {total / 60:6.1f} hours")
     if args.estimate_only:
         return
 
     failed = []
-    for variant in runs:
-        run_dir = out / variant
+    for variant, seed in pairs:
+        name = run_name(variant, seed, seeds)
+        run_dir = out / name
         if (run_dir / "final.json").exists():
-            print(f"\n=== {variant}: already done, skipping ===")
+            print(f"\n=== {name}: already done, skipping ===")
             continue
-        print(f"\n=== {variant} ===", flush=True)
+        print(f"\n=== {name} ===", flush=True)
         run_dir.mkdir(parents=True, exist_ok=True)
         cmd = train_command(args.preset, variant, run_dir, extra)
+        cmd += ["--seed", str(seed)]
         cmd += ["--steps", str(steps), "--eval-every", str(max(1, steps // EVALS_PER_RUN))]
         if (run_dir / "checkpoint.safetensors").exists():
             cmd.append("--resume")
         code = run_logged(cmd, run_dir / "train.log")
         if code != 0:
-            failed.append(variant)
-            print(f"{variant} exited with code {code}; continuing")
+            failed.append(name)
+            print(f"{name} exited with code {code}; continuing")
             if code == 130:  # interrupted by the user
                 break
         write_report(out)

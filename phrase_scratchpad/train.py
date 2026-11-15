@@ -39,7 +39,7 @@ MODEL_FLAGS = (
 )
 TRAIN_FLAGS = (
     "steps", "batch_size", "two_hop_frac", "lr", "warmup", "weight_decay",
-    "table_weight_decay", "grad_clip", "bridge_loss_weight", "table_off",
+    "table_weight_decay", "grad_clip", "bridge_loss_weight", "table_off", "reader_frac",
     "eval_every", "log_every", "eval_size",
 )
 
@@ -93,6 +93,10 @@ def parse_args(argv=None):
     t.add_argument(
         "--no-hide-subject", action="store_true",
         help="never hide a fact question's subject after step one",
+    )
+    t.add_argument(
+        "--reader-frac", type=float,
+        help="share of one-step fact questions asked through the scratchpad",
     )
     t.add_argument("--eval-every", type=int)
     t.add_argument("--log-every", type=int)
@@ -179,9 +183,14 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
         ``one_hop_every_step`` a one-step question is graded at every step.
         Questions of a ``table_off`` task run with the lookup switched off.
         Some two-step fact questions lose their subject after the first step.
+        A fact asked through the scratchpad has its note put there after
+        step 1 and is graded on its final answer only.
         """
 
-        def task_loss(task, model, question, answer, bridge, teach_bridge, every_step, table_on, hide):
+        def task_loss(
+            task, model, question, answer, bridge, teach_bridge, every_step, table_on, hide,
+            note, given,
+        ):
             logits, trace = model(
                 question,
                 steps=steps,
@@ -189,6 +198,7 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
                 table_on=table_on if cfg.table_off else None,
                 hide_prefix=hide if task.hide_prob else None,
                 n_passes=task.n_passes,
+                note=(note, given) if task.reader_frac else None,
             )
             earlier = trace["step_logits"][:-1]
             share = (1 - every_step) + every_step / (len(earlier) + 1)
@@ -205,11 +215,11 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
 
         def loss_fn(model, *batch):
             # Each task's questions have their own length, so each task is a
-            # separate forward pass: seven arrays per task. Tasks count
+            # separate forward pass: nine arrays per task. Tasks count
             # equally, whatever their batch sizes.
             total = mx.array(0.0)
             for i, (task, size) in enumerate(zip(suite.tasks, sizes)):
-                total = total + task_loss(task, model, *batch[7 * i : 7 * i + 7]) / size
+                total = total + task_loss(task, model, *batch[9 * i : 9 * i + 9]) / size
             return total / len(sizes)
 
         loss_and_grad = nn.value_and_grad(model, loss_fn)
@@ -231,9 +241,14 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     def make_batch():
         arrays = []
         for task, (n_one, n_chain) in zip(suite.tasks, counts):
-            items = task.sample(rng, n_one, n_chain)
+            if task.reader_frac:
+                items = task.sample(rng, n_one, n_chain, reader_frac=task.reader_frac)
+            else:
+                items = task.sample(rng, n_one, n_chain)
             teach = items.chain & (task.name in cfg.supervised)
-            every = ~items.chain & cfg.one_hop_every_step
+            # A fact asked through the scratchpad cannot be answered at step
+            # 1, before its note is there.
+            every = ~items.chain & ~items.given & cfg.one_hop_every_step
             table_on = np.full(len(items), task.name not in cfg.table_off)
             hidden = rng.random(len(items)) < task.hide_prob
             arrays += [
@@ -244,6 +259,8 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
                 every.astype(np.float32),
                 table_on.astype(np.float32),
                 (items.subject_len * hidden).astype(np.int32),
+                items.note,
+                items.given.astype(np.float32),
             ]
         return [mx.array(a) for a in arrays]
 

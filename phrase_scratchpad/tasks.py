@@ -59,10 +59,19 @@ class Items:
     # which training may hide after the first step. 0 where that is not
     # meaningful.
     subject_len: np.ndarray = None  # (n,)
+    # A note to put in the scratchpad after the first step in place of what
+    # the model wrote, and which questions have one. It is how a one-step
+    # fact is asked through the scratchpad (see ``Task.reader_items``).
+    note: np.ndarray = None  # (n, K)
+    given: np.ndarray = None  # (n,) bool
 
     def __post_init__(self):
         if self.subject_len is None:
             self.subject_len = np.zeros(len(self.question), dtype=np.int32)
+        if self.note is None:
+            self.note = np.zeros_like(self.answer)
+        if self.given is None:
+            self.given = np.zeros(len(self.question), dtype=bool)
 
     def __len__(self):
         return len(self.question)
@@ -154,6 +163,14 @@ class Task:
         }
         self.group_sizes = {name: len(idx) for name, idx in groups.items()}
 
+        # For asking a one-step fact through the scratchpad: the facts that
+        # can be the second step of a chain (a property of the kind of fact,
+        # not of any answer), and the first steps of training chains, which
+        # supply the unrelated start of such a question.
+        self.readable = np.zeros(n_facts, dtype=bool)
+        self.readable[second] = True
+        self.reader_context = np.unique(first[self.train_chains])
+
         def sample(idx):
             return np.sort(idx[rng.permutation(len(idx))[:eval_size]])
 
@@ -195,6 +212,49 @@ class Task:
             subject_len=(self.subject[first] != PAD).sum(axis=1).astype(np.int32),
         )
 
+    def reader_items(self, ids, context):
+        """One-step facts asked through the scratchpad.
+
+        Each question is laid out like a two-step question, but its start
+        (subject and first relation) is taken from ``context``, an unrelated
+        fact, and the note that step two reads is replaced by this fact's own
+        subject. The answer is this fact's answer. Step two then sees what it
+        sees in a real chain: a name in the scratchpad and the relation to
+        apply to it. Only the one-step label is used, never a chain's answer
+        or its intermediate answer.
+        """
+        n = len(ids)
+        blank = np.zeros((n, self.suffix_len), dtype=np.int32)
+        return Items(
+            question=compact(self.subject[context], self.suffix[context], self.suffix[ids]),
+            answer=self.answer[ids],
+            bridge=np.zeros((n, self.answer_len), dtype=np.int32),
+            chain=np.zeros(n, dtype=bool),
+            first=compact(self.subject[ids], self.suffix[ids], blank),
+            suffix=self.suffix[ids],
+            subject_len=(self.subject[context] != PAD).sum(axis=1).astype(np.int32),
+            note=self.subject[ids],
+            given=np.ones(n, dtype=bool),
+        )
+
+    def contexts(self, rng, ids):
+        """An unrelated training first step for each fact in ``ids``.
+
+        A first step whose answer is the fact's subject would make the
+        question a real chain with its answer attached, possibly a test
+        chain, so those are never used.
+        """
+        pool = self.reader_context
+        if not len(ids):
+            return pool[:0]
+        at = rng.integers(0, len(pool), len(ids))
+        for _ in range(len(pool)):
+            real = (self.answer[pool[at]] == self.subject[ids]).all(axis=1)
+            if not real.any():
+                return pool[at]
+            at[real] = (at[real] + 1) % len(pool)
+        raise ValueError("no unrelated first step for some fact")
+
     @property
     def eval_sets(self):
         """{split name: Items}, skipping empty splits."""
@@ -202,11 +262,23 @@ class Task:
         sets.update({name: self.chain_items(ids) for name, ids in self.eval_chains.items()})
         return {name: items for name, items in sets.items() if len(items)}
 
-    def sample(self, rng, n_one, n_chain):
-        """Random training questions: every fact, and the training chains."""
-        one = self.fact_items(rng.integers(0, len(self.subject), n_one))
+    def sample(self, rng, n_one, n_chain, reader_frac=0.0):
+        """Random training questions: every fact, and the training chains.
+
+        With ``reader_frac``, that share of the one-step questions about
+        facts that can be a second step are asked through the scratchpad
+        instead. They replace ordinary one-step questions, so each fact is
+        presented as often as without it.
+        """
+        ids = rng.integers(0, len(self.subject), n_one)
         picked = self.train_chains[rng.integers(0, len(self.train_chains), n_chain)]
-        return join(one, self.chain_items(picked))
+        chains = self.chain_items(picked)
+        if not reader_frac:
+            return join(self.fact_items(ids), chains)
+        through_note = self.readable[ids] & (rng.random(n_one) < reader_frac)
+        asked = ids[through_note]
+        reader = self.reader_items(asked, self.contexts(rng, asked))
+        return join(join(self.fact_items(ids[~through_note]), reader), chains)
 
     def second_questions(self, bridge, items):
         """The one-step question for the second hop, about a given bridge."""
@@ -250,6 +322,7 @@ class Task:
             "facts_never_in_a_training_chain": int((~self.practised).sum()),
             "chains": len(self.chain_first),
             "training_chains": len(self.train_chains),
+            "facts_that_can_be_a_second_step": int(self.readable.sum()),
         }
         out.update({f"all_{name}": size for name, size in self.group_sizes.items()})
         return out

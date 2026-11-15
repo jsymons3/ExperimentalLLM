@@ -20,6 +20,9 @@ All five full-size runs completed on November 14, 2026. The supervised fact
 scratchpad works with multi-word names, but the mixed run does not show transfer
 of chaining from arithmetic and stories. See [the completed results](#completed-overnight-results-november-14).
 
+The next run is [the reading test](#the-reading-test-next-run). It is set up
+and checked at small size, and not yet run at full size.
+
 ## Setup
 
 Apple silicon Mac, from the repository root, in the existing environment:
@@ -71,6 +74,160 @@ A single run, for example a quick look at arithmetic:
 ```bash
 .venv/bin/python -m phrase_scratchpad.train --variant maths --preset smoke --steps 3000 --out runs/phrase-smoke/maths
 ```
+
+## The reading test (next run)
+
+### Why
+
+The overnight runs showed where fact chains fail. With the intermediate
+answer taught, the note is written correctly on 99.1% of chains whose second
+fact was kept out of training chains, yet only 78.3% are answered, and
+supplying the correct note does not help (78.6%). Asked as two separate
+questions, the same model reaches 93.3%. The second fact is stored. It is not
+reliably found when its subject arrives in the scratchpad instead of in the
+question, which is the only way that fact was ever asked.
+
+### What changes
+
+Half of the one-step questions about facts that can be a second step are
+asked through the note instead:
+
+    ordinary     Alain Jessua [country of citizenship]             answer French
+    through      Verdi [director] [country of citizenship]         answer French
+    the note     with the note set to "Alain Jessua" after step 1
+
+- The question starts like a two-step question. Its start ("Verdi
+  [director]") is the first step of some training chain and has nothing to do
+  with the fact.
+- After step 1 the scratchpad is set to the fact's subject, whatever the
+  model wrote. The answer is the fact's own answer. Step 2 then sees what it
+  sees in a real chain: a name in the scratchpad and the relation to apply.
+- As with chains, the subject at the start is hidden after step 1 half the
+  time. The other half teaches that the note wins over a question still in
+  view.
+- These questions replace ordinary one-step questions, so every fact is
+  presented as often as before. No chain is added, and no chain's answer or
+  intermediate answer is shown. A start that happens to lead to the fact's
+  subject would make a real chain, so those are never used.
+
+A held-out second fact is therefore still absent from every training chain,
+but it is no longer unread through the note. A good score in a `_reader` run
+means that one-step labels are enough to make a fact usable in chains. It
+does not mean the model reads facts through the note that it never read
+that way.
+
+### The runs
+
+| Run | Intermediate taught | Facts asked through the note | Question |
+|---|---|---|---|
+| `facts_reader` | Yes | Yes | Does teaching the reading close the gap to two separate questions? |
+| `facts` | Yes | No | Control. Seed 0 repeats the overnight run (78.3%). |
+| `facts_unsupervised_reader` | No | Yes | Once step 2 can read a name, does step 1 start writing one? |
+| `facts_unsupervised` | No | No | Control. Seed 0 repeats the overnight run (24.2%). |
+
+Each runs with seeds 0 and 1. The seed changes the starting weights and the
+order of questions; the facts and the split are the same. All four runs with
+seed 0 come first. A `_reader` run differs from its control in that one
+setting (`reader_frac`). The untaught pair has the small dense core and the
+loss of the stage 3 runs, as before, so compare within a pair.
+
+### Run it
+
+1. Check the code (under a minute; no download is needed):
+
+```bash
+.venv/bin/python -m pytest --rootdir=. --confcutdir=. phrase_scratchpad/tests -q
+```
+
+2. Time the runs and print the plan, without starting them:
+
+```bash
+bash scripts/run_reading_test.sh --estimate-only
+```
+
+3. Start the eight runs:
+
+```bash
+bash scripts/run_reading_test.sh
+```
+
+At the overnight speed a run takes about 45 minutes at 64,000 steps, so the
+eight take about six hours inside the default eight-hour budget. Keep the Mac
+plugged in with the lid open. The same command resumes after an interruption.
+Progress is in `runs/reading-test/sweep.log`, and
+`runs/reading-test/report.md` is rewritten after every finished run. A
+different budget, run list or seed list needs a fresh `--out` directory.
+
+To keep the results, copy `report.md`, `plan.json` and each run's
+`config.json`, `final.json` and `metrics.jsonl` into
+`phrase_scratchpad/results/`, as for the overnight run. Checkpoints stay out
+of the repository.
+
+### What the report adds
+
+- **The reading test**: for held-out 2nd chains, the mean and range over
+  seeds of accuracy, how often the bridge is written, and accuracy with the
+  true bridge supplied, with notes shuffled, with the subject hidden after
+  step 1, and with the model's own note written into a fresh question.
+- **Reading a known fact from the note**: one-step facts asked as a question
+  and asked through the note, separately for facts used in training chains
+  and facts never used in one.
+- Three more columns under "Is the scratchpad used?", for every run:
+  - *Final answer written at step 1*: the chain answered in one step, with
+    the scratchpad only carrying the result forward.
+  - *Subject hidden after step 1*: accuracy when step 2 can see only the
+    relations and the note.
+  - *Own note in a fresh question*: the note is written into a new one-step
+    question and that is asked on its own. This is the handoff done by
+    rewriting the question in code, which is how `ouro_lookup/` chains. It
+    needs no reading from the scratchpad.
+
+### How to read it
+
+- **Reading is fixed** if `facts_reader` lifts "true bridge supplied" and
+  held-out 2nd from about 78% toward the 93% of two separate questions.
+- **The gap was the question in view** if `facts`, the control, already
+  scores far higher with the subject hidden than without. The note is then
+  read correctly when nothing else can be used, and hiding the subject at
+  test time would be the smaller fix.
+- **The note appears by itself** if `facts_unsupervised_reader` writes the
+  bridge, which no run was taught to do, and beats `facts_unsupervised` on
+  held-out 2nd while shuffled notes still destroy the answer. This is the
+  matched control a later transfer run would be compared with.
+- **Step 2 can read and step 1 does not write** if that run's "true bridge
+  supplied" is high while the bridge is not written. Then the missing piece
+  is the first step, which is what teaching on another task was meant to
+  supply.
+
+### Small checks
+
+On CPU, with 60 people (745 facts), width 48, a 256-entry table, 5,000 steps
+and one seed each. There are 182 held-out 2nd chains, and guessing scores
+31%. These show that the code does what it should. They do not predict the
+full-size result.
+
+| Run | Held-out 2nd | Bridge written | True bridge supplied | Subject hidden | Own note in a fresh question | Held-out fact read through the note |
+|---|---|---|---|---|---|---|
+| `facts` | 53.3% | 100.0% | 53.3% | 91.8% | 100.0% | 82.1% |
+| `facts_reader` | 96.2% | 100.0% | 96.2% | 96.2% | 98.4% | 96.4% |
+| `facts_unsupervised` | 29.1% | 6.0% | 33.0% | 32.4% | 37.9% | 64.3% |
+| `facts_unsupervised_reader` | 54.9% | 6.0% | 97.8% | 54.4% | 52.2% | 100.0% |
+
+- **With the intermediate taught, the teaching closed the gap**: held-out 2nd
+  went from 53% to 96%, and chains with both facts held out from 33% to 88%.
+- **The control read its note correctly when the subject was hidden** (92%)
+  and not when it was in view (53%). At this size most of the loss came from
+  the question still being visible, not from an unreadable note.
+- **With nothing taught, step 2 learned to read and step 1 did not learn to
+  write.** Supplying the true bridge went from 33% to 98%, but the bridge was
+  written on 6% of chains in both runs. Step 1 wrote its guess at the final
+  answer instead (38% of held-out 2nd chains, against 22% in the control) and
+  step 2 copied it.
+- **The untaught gain is not chaining.** Held-out 2nd rose from 29% to 55%,
+  but most of it is on country of citizenship (69% to 90%, 62 chains), which
+  has a few common answers. Dates of birth rose from 2% to 25% (61 chains).
+- Both new runs were also built at full size and took compiled training
+  steps and an evaluation on CPU.
 
 ## The tasks
 
@@ -389,7 +546,7 @@ Arithmetic, numbers up to 19, intermediate result taught, 6,000 steps.
 | `model.py` | Multi-token scratchpad, dense core, table switch |
 | `configs.py` | The runs |
 | `train.py` | One run: training, periodic evaluation, checkpoints |
-| `evaluate.py` | Accuracy, scratchpad interventions, two-call ceiling, table on and off |
-| `sweep.py` | The runs one after another inside a time budget |
+| `evaluate.py` | Accuracy, scratchpad interventions, facts read through the note, two-call ceiling, table on and off |
+| `sweep.py` | The runs one after another inside a time budget, for one or several seeds |
 | `report.py` | Markdown summary of finished runs |
-| `tests/` | Labels, splits, masking, scratchpad contents, table switch, resume |
+| `tests/` | Labels, splits, masking, scratchpad contents, given notes, table switch, resume, seeds |

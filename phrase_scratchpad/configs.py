@@ -12,9 +12,11 @@ VARIANTS = {
     "maths": "stage 1: arithmetic chains, intermediate result taught",
     "clutrr": "stage 1: family-story questions, intermediate link taught",
     "facts": "stage 2: real-name fact chains, intermediate answer taught",
+    "facts_reader": "reading test: stage 2, with known facts also asked through the note",
     "mix": "stage 3: all three; intermediate taught for arithmetic and stories only",
     "mix_split": "stage 3 with the table switched off on arithmetic and stories",
     "facts_unsupervised": "control for stage 3: facts alone, intermediate never taught",
+    "facts_unsupervised_reader": "reading test: that control, with known facts also asked through the note",
     "maths_plain": "baseline: arithmetic, no scratchpad, same block applications",
     "clutrr_plain": "baseline: family stories, no scratchpad, same block applications",
     "facts_plain": "baseline: facts, no scratchpad, same block applications",
@@ -35,6 +37,10 @@ TASK_PASSES = {"clutrr": 2}
 # and the scratchpad goes unread. Arithmetic was left unmasked because hiding
 # slowed it in small checks; one pass did not enforce note use at full size.
 TASK_HIDE = {"facts": 0.5}
+# Tasks whose one-step facts can be asked through the scratchpad
+# (``reader_frac``), and the share used by the reading-test runs.
+READER_TASKS = ("facts",)
+_READER = {"reader_frac": 0.5}
 # Share of ``batch_size`` each task gets. Family stories are several times
 # longer than the other questions and there are far fewer of them, so a
 # quarter-size batch costs about the same and still shows each story often.
@@ -47,9 +53,11 @@ _SETTINGS = {
     "maths": {"tasks": ("maths",), "supervised": ("maths",)},
     "clutrr": {"tasks": ("clutrr",), "supervised": ("clutrr",)},
     "facts": {"tasks": ("facts",), "supervised": ("facts",)},
+    "facts_reader": {"tasks": ("facts",), "supervised": ("facts",), **_READER},
     "mix": {"tasks": ALL, "supervised": REASONING, **_STAGE3},
     "mix_split": {"tasks": ALL, "supervised": REASONING, "table_off": REASONING, **_STAGE3},
     "facts_unsupervised": {"tasks": ("facts",), "supervised": (), **_STAGE3},
+    "facts_unsupervised_reader": {"tasks": ("facts",), "supervised": (), **_STAGE3, **_READER},
     "maths_plain": {"tasks": ("maths",), "supervised": (), "model": _PLAIN},
     "clutrr_plain": {"tasks": ("clutrr",), "supervised": (), "model": _PLAIN},
     "facts_plain": {"tasks": ("facts",), "supervised": (), "model": _PLAIN},
@@ -73,6 +81,12 @@ class RunConfig:
     # the first step, so that they can only be answered through the
     # scratchpad. TASK_HIDE says which tasks and how often.
     hide_subject: bool = True
+    # Share of the one-step questions about facts that can be a second step
+    # which are asked through the scratchpad instead: the question starts
+    # like an unrelated two-step question, the note is replaced by the
+    # fact's subject, and the answer is the fact's answer. It teaches step
+    # two to read any known fact from a note, using one-step labels only.
+    reader_frac: float = 0.0
     # Tasks trained with the lookup table switched off. Only sensible for
     # questions that need no stored facts, and with a dense core (core_ff).
     table_off: tuple = ()
@@ -125,6 +139,7 @@ def build_run(cfg: RunConfig):
         # None means the model's own setting.
         task.n_passes = TASK_PASSES.get(task.name) if cfg.model.get("scratchpad", True) else None
         task.hide_prob = TASK_HIDE.get(task.name, 0.0) if cfg.hide_subject else 0.0
+        task.reader_frac = cfg.reader_frac if task.name in READER_TASKS else 0.0
     model_cfg = PhraseConfig(
         vocab_size=len(suite.vocab),
         n_output=suite.n_output,
