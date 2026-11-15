@@ -22,10 +22,10 @@ route fails on new chains despite recalling their facts. See the
 [results and interpretation](results/mac-2026-11-14/README.md) and
 [full diagnostic report](results/mac-2026-11-14/report.md).
 
-The next run is [the two-day run](TWODAY.md): removing eight of Ouro's layers
+The next run is [the two-day run](TWODAY.md): removing eight of Ouro's feed-forward modules
 and training a table, a small dense layer or adapters to take over what they
-knew, then adding and changing facts without revision. It is built and
-checked at small size, and not yet run on an Apple GPU.
+knew, then adding and changing facts without revision. The Mac preflight
+passes and full-size timing is in progress; the full results are not yet known.
 
 ## Setup
 
@@ -366,4 +366,4 @@ three: four full-size runs finished in stored bfloat16 with final diagnostics.
 | `download.py` | Fetches and checks the model |
 | `tiny.py` | A tiny random stand-in for tests and dry runs |
 | `takeover.py`, `flex.py`, `text.py`, `probes.py`, `twoday.py`, `twoday_report.py` | The two-day run: see [TWODAY.md](TWODAY.md) |
-| `tests/` | 58 tests |
+| `tests/` | 61 tests |

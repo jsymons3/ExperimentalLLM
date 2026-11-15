@@ -190,7 +190,8 @@ def recall(model, tokens, answers, batch=128, **switches):
 
 def freeze_keys(model):
     """Stop training the part of each table that forms and matches queries.
-    Entries can still be written; where a question lands no longer moves."""
+    Entries can still be written. Routing may still change across loops
+    because the updated entries change the hidden state used by a query."""
     for table in model.tables:
         table.query.freeze()
         table.freeze(keys=["subkeys"], recurse=False)
@@ -394,23 +395,35 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True):
                 "untouched": recall(model, tokens[kept], answers[kept]),
             }
 
-        before = look()
-        steps, records, sec = train_phase(
-            model, cfg, tokens[edited], new_answers, cfg.edit_steps,
-            np.random.default_rng([cfg.seed, 1]), check=look, check_every=cfg.edit_check,
-            compile_step=compile_step, label="changed facts",
-        )
-        finish_phase({"phase": 1, "facts": len(edited), "steps": steps, "sec_per_step": sec})
-        took = next((r for r in records if r["recall"] >= 0.95), None)
+        if len(phases) > 1:
+            if "edit" not in phases[1]:
+                raise ValueError("completed edit checkpoint lacks diagnostics; refusing to edit twice")
+            edit_result = phases[1]["edit"]
+            after_edit_loss = phases[1]["ordinary_text_loss"]
+        else:
+            before = look()
+            steps, records, sec = train_phase(
+                model, cfg, tokens[edited], new_answers, cfg.edit_steps,
+                np.random.default_rng([cfg.seed, 1]), check=look, check_every=cfg.edit_check,
+                compile_step=compile_step, label="changed facts",
+            )
+            edit_result = {
+                "changed": len(edited), "untouched": len(kept), "before": before,
+                "checks": records,
+                "when_changed": next((r for r in records if r["recall"] >= 0.95), None),
+                "at_end": records[-1],
+            }
+            after_edit_loss = ordinary()
+            finish_phase({
+                "phase": 1, "facts": len(edited), "steps": steps, "sec_per_step": sec,
+                "edit": edit_result, "ordinary_text_loss": after_edit_loss,
+            })
         result = {
             "joint": phases[0],
-            "edit": {
-                "changed": len(edited), "untouched": len(kept), "before": before,
-                "checks": records, "when_changed": took, "at_end": records[-1],
-            },
+            "edit": edit_result,
             "ordinary_text_loss": {
                 "original": original_loss, "after_joint": phases[0]["ordinary_text_loss"],
-                "at_end": ordinary(),
+                "at_end": after_edit_loss,
             },
         }
 

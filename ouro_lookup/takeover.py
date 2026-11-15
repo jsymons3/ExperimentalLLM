@@ -353,7 +353,11 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
 
     if compile_step:
         train_step = partial(mx.compile, inputs=state, outputs=state)(train_step)
-    rng = np.random.default_rng([cfg.seed, step0])
+    rng = np.random.default_rng([cfg.seed, 0])
+    # Resume at the same training windows as an uninterrupted run, so the
+    # matched-data comparison does not change after a restart.
+    for _ in range(step0):
+        rng.integers(0, len(text.train) - cfg.seq_len + 2, cfg.batch_size)
 
     def one_step():
         values = train_step(mx.array(text.batch(rng, cfg.batch_size)))

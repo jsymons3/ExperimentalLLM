@@ -77,12 +77,10 @@ def rotate(x, cos, sin):
     return mx.concatenate([a * cos - b * sin, b * cos + a * sin], axis=-1)
 
 
-# Sequences up to this length use the explicit calculation below. The failure
-# it avoids was seen on questions of up to nine tokens; whether the fused
-# kernel can be trained through at longer lengths on an Apple GPU was never
-# tested, so every length the experiments train on stays on the explicit path.
-# Its attention matrices are small at these lengths.
-EXPLICIT_UP_TO = 256
+# The Metal vector-kernel gradient failure affects the short fact questions.
+# Compiled bfloat16 gradients at lengths 48 and 96 are checked on the real
+# head width; text windows retain the memory-efficient fused implementation.
+EXPLICIT_UP_TO = 16
 
 
 def causal_attention(q, k, v):

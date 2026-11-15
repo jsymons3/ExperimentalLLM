@@ -366,7 +366,7 @@ def test_fixed_keys_stop_moving_after_the_first_batch(tiny_dir, tmp_path):
     assert not np.array_equal(write, np.array(model.tables[0].write))  # entries still learn
 
 
-def test_changing_facts(tiny_dir, tmp_path):
+def test_changing_facts(tiny_dir, tmp_path, monkeypatch):
     cfg = small_flex("edit", "table", tiny_dir, joint_steps=600, n_edits=6, edit_steps=60,
                      edit_check=20)
     final = flex.run(cfg, tmp_path / "edit")
@@ -381,6 +381,17 @@ def test_changing_facts(tiny_dir, tmp_path):
     assert set(final["ordinary_text_loss"]) == {"original", "after_joint", "at_end"}
     timing = flex.run(cfg, tmp_path / "t", time_only=2)
     assert timing["sec_per_step"] > 0 and timing["eval_sec"] > 0
+    # A crash after the editing checkpoint but before final.json must not
+    # train the edited facts a second time or overwrite their before score.
+    (tmp_path / "edit" / "final.json").unlink()
+    checkpoint = (tmp_path / "edit" / "checkpoint.safetensors").read_bytes()
+    def unexpected_training(*args, **kwargs):
+        raise AssertionError("completed edit phase was trained twice")
+    monkeypatch.setattr(flex, "train_phase", unexpected_training)
+    resumed = flex.run(cfg, tmp_path / "edit", resume=True)
+    assert resumed["edit"] == final["edit"]
+    assert resumed["ordinary_text_loss"] == final["ordinary_text_loss"]
+    assert (tmp_path / "edit" / "checkpoint.safetensors").read_bytes() == checkpoint
 
 
 # -- the sweep --------------------------------------------------------------
@@ -397,6 +408,19 @@ def test_run_order():
     assert all(name.endswith("_s1") for name in names[13:])
     assert Run("retain", "table_fixed_keys", 1).timing_key == Run("edit", "table", 0).timing_key
     assert len(run_list([0])) == 13
+
+
+def test_failed_preflight_stops_before_timing_or_training(tmp_path, monkeypatch):
+    from ouro_lookup import twoday
+    monkeypatch.setattr(twoday, "quick_check", lambda *args: {
+        "passed": False, "takeover_loss_first": 1.0, "takeover_loss_last": 2.0,
+        "held_out": {"original": 1.0, "nothing": 2.0}, "retain_learned": 0.2,
+    })
+    def unexpected_pilot(*args, **kwargs):
+        raise AssertionError("timing started after a failed preflight")
+    monkeypatch.setattr(twoday, "pilot", unexpected_pilot)
+    with pytest.raises(SystemExit, match="quick check failed"):
+        twoday.main(["--out", str(tmp_path), "--estimate-only"])
 
 
 def test_sweep_and_report(tiny_dir, tiny_text, tmp_path):

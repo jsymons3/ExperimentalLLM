@@ -7,7 +7,7 @@ import pytest
 from ouro_lookup.ouro import OuroConfig, causal_attention, load_ouro, rotary_tables, rotate
 
 
-@pytest.mark.parametrize("length", [1, 6, 9])
+@pytest.mark.parametrize("length", [1, 6, 9, 48, 96])
 def test_real_head_width_short_attention_matches_fused_and_has_gradients(length):
     """The tiny model's width misses the Metal vector-kernel VJP failure."""
     mx.random.seed(17)

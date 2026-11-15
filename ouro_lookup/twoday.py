@@ -241,7 +241,7 @@ def main(argv=None):
             + ("passed" if verdict["passed"] else "FAILED")
         )
         if not verdict["passed"]:
-            print("The runs below go ahead, but read their first evaluations with care.")
+            raise SystemExit("quick check failed; refusing to start the long sweep")
     if args.check_only:
         return
 

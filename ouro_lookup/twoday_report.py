@@ -86,6 +86,10 @@ def takeover_section(runs):
         "\"Lost ground\" is the rise in held-out loss when the MLPs are removed and nothing "
         "is put back. Computation counts multiplications per token for what stands in for "
         "one removed MLP; adapters add none once folded into the weights.",
+        "These are arithmetic operation counts, not measured inference latency. The large "
+        "table has more parameters than the removed MLPs. Scores on probes measure the "
+        "first answer token only; recovery does not establish where facts were stored "
+        "or that general reasoning was preserved.",
         "",
     ]
     for f in runs:

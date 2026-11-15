@@ -8,13 +8,14 @@ all:
 
 1. **Take-over.** Remove part of Ouro and train something to do its work. Can
    a table take over what the removed part knew, at a small share of its
-   computation? What was removed is far more than adapters or a small dense
-   layer have room for.
+   computation? Whether adapters or a small dense layer can recover the
+   same behaviour is an empirical question, not something their parameter
+   counts settle in advance.
 2. **Flexibility.** Add facts batch by batch, and change facts, without
    showing the old ones again. Does a table lose less than adapters?
 
-It is built and checked at small size. It has not been run on an Apple GPU.
-See "Status".
+The Mac preflight passed on November 15, 2026. Full-size timings are being
+measured before launch. See "Status" for the review and the small checks.
 
 ## Run it
 
@@ -47,7 +48,8 @@ bash scripts/run_ouro_twoday.sh --estimate-only
 bash scripts/run_ouro_twoday.sh
 ```
 
-The default budget is 44 hours and the plan never exceeds it. The same
+The default planning budget is 44 hours; timings are estimates, not a
+guarantee of wall-clock duration. The same
 command resumes after an interruption. Results are in
 `runs/ouro-twoday/report.md`, rewritten after every finished run, and the log
 is `runs/ouro-twoday/sweep.log`. Keep the Mac plugged in with the lid open.
@@ -65,7 +67,7 @@ To keep the results, copy `report.md`, `plan.json` and each run's
 `ouro_lookup/results/`, as for stage 1. Checkpoints stay out of the
 repository.
 
-## Part 1: taking over eight layers
+## Part 1: replacing eight feed-forward modules
 
 ### What is removed
 
@@ -81,11 +83,14 @@ well-known next word):
 | Layers 10 to 13 | 3.22 | not measured |
 | Layers 8 to 15 | 4.03 | 39 |
 
-The model still writes grammatical text without them but loses most of what
-it knew. It named 99 capital cities before and none after ("The capital of
-Kenya is the"). All eight sequence patterns survive ("Monday, Tuesday,
-Wednesday," is still followed by "Thursday"). One middle MLP alone barely
-matters, so eight are removed to leave something to measure.
+The original small check retained grammatical-looking text but lost many
+of these next-token completions. It named 99 capital cities before and none
+after ("The capital of Kenya is the"). All eight originally correct sequence
+patterns survived. This does not establish that the removed modules held
+facts exclusively, that factual information was erased, or that reasoning
+survived: damaging a computation can make existing information inaccessible.
+One middle MLP alone barely changed the measured loss, so eight are removed
+to leave a measurable recovery task. Attention in all 24 layers remains.
 
 ### What stands in
 
@@ -97,9 +102,19 @@ matters, so eight are removed to leave something to measure.
 | `takeover_table_small` | A table of 4,096 entries | 138 million | 2% |
 | `takeover_dense_wide` | A small MLP of width 448 | 22 million | 8% |
 
-Computation counts multiplications per token. A table reads 32 entries
-whatever its size, so its cost does not grow with what it holds. A small MLP
-of width 112 costs exactly what the default table costs.
+Computation counts multiplications per token, not measured latency. A table
+reads 32 entries at these sizes; scoring its subkeys still grows with table
+size. A small MLP of width 112 matches the default table's counted
+multiplications. Sparse memory traffic and routing overhead may make the
+table slower in practice. The 541-million-parameter replacement is larger
+than the 277 million removed parameters, so this is not parameter compression.
+
+This is a frozen-model distillation/recovery experiment inspired by
+[Memory Layers at Scale](https://arxiv.org/html/2412.09764v2). That work
+pretrained memory-augmented models on up to a trillion tokens; it did not
+establish this particular frozen-core repair recipe. Success here would
+support replacing dense computation under the tested conditions, not prove
+that facts have been cleanly separated from general reasoning.
 
 Ouro's remaining weights stay frozen. The stand-in is trained to imitate the
 original model on ordinary text, so no labels are needed. At every position
@@ -210,13 +225,40 @@ shorter.
 - **Not in this run**: deleting a single fact from the table, and teaching
   the table to stay silent on ordinary text. In Part 1 the table is trained
   on ordinary text, so that question does not arise there.
-- **Attention.** Sequences up to 256 tokens use the explicit calculation that
-  fixed stage 1 on the Apple GPU. Whether the fused kernel can be trained
-  through at these lengths was never tested there.
+- **Attention.** Short questions retain the explicit calculation that fixed
+  stage 1. Compiled bfloat16 gradients now pass on the Mac at lengths 48 and
+  96 with Ouro's real head width, so text windows use fused attention.
 - **A known fact** counts when the model's most likely next token is the
   first token of the expected word.
 
 ## Status
+
+### Mac review and preflight, November 15, 2026
+
+- All 150 tests across the four packages pass, including 61 Ouro tests.
+  An existing tiny recall test needed 300 rather than 150 steps to converge
+  reliably on the Mac; its accuracy and table-off requirements are unchanged.
+- The real 541-million-parameter table trained for 40 steps on 7,680 text
+  tokens with fused attention at length 48. On 1,504 held-out target tokens,
+  loss was 2.994 for the original model, 4.828 after removing the MLPs and
+  3.943 with the trained replacement: 48.3% of that gap recovered. First-token
+  probes rose from 38 to 78 of 238 originally correct. This is a preflight,
+  not a comparison against the dense or adapter controls.
+- The small retention preflight learned both 72-fact batches to 100%, but
+  retained only 59.7% of the first batch after learning the second. No
+  comparative retention benefit is established by this check.
+- A failed preflight now stops the sweep. Resuming an editing run after its
+  last checkpoint reuses its saved diagnostics instead of editing twice.
+  Takeover resumption advances the original data generator to the saved
+  step, preserving the matched window sequence.
+- Compiled attention gradients pass at lengths 48 and 96 on Ouro's real
+  bfloat16 head width. Text-window training uses fused attention; short fact
+  questions retain the stage-1 workaround.
+- Text timings use a batch of four 96-token windows to leave memory headroom
+  on the Mac. The planned full comparison will use the same batch and number
+  of steps for each takeover variant. Full results are not yet established.
+
+### Checks before the Mac review
 
 Checked while building, on a Linux machine with no GPU:
 
@@ -237,7 +279,7 @@ Checked while building, on a Linux machine with no GPU:
   0.51. Two steps of the rank-344 adapters on two questions were finite, with
   the loss going from 11.1 to 7.7.
 
-Not checked:
+Not checked at that earlier stage:
 
 - **Any of it on an Apple GPU.** Speed, memory and the time per run are
   unknown until the plan is printed. Run steps 2 and 3 above first.
@@ -258,4 +300,4 @@ Not checked:
 | `probes.py` | The well-known facts and how they are scored |
 | `twoday.py` | The quick check, the timing and the runs in order |
 | `twoday_report.py` | `report.md` from finished runs |
-| `tests/test_twoday.py` | 20 tests |
+| `tests/test_twoday.py` | 21 tests |
