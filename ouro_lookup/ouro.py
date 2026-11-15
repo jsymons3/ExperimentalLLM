@@ -77,6 +77,28 @@ def rotate(x, cos, sin):
     return mx.concatenate([a * cos - b * sin, b * cos + a * sin], axis=-1)
 
 
+def causal_attention(q, k, v):
+    """Attention with a differentiable path for short training questions.
+
+    MLX 0.32.4 selects a Metal vector kernel for short sequences with Ouro's
+    head width. That kernel cannot supply the logsumexp needed by its VJP,
+    even with force_fused=True. Materialising these tiny attention matrices
+    avoids that path; longer sequences keep the fused implementation.
+    """
+    length = q.shape[-2]
+    scale = q.shape[-1] ** -0.5
+    # Small test-model heads already take MLX's differentiable fallback.
+    # Keep that path unchanged; the affected vector kernels use wider heads.
+    if length <= 16 and q.shape[-1] >= 64:
+        scores = (q.astype(mx.float32) * scale) @ k.astype(mx.float32).swapaxes(-1, -2)
+        if length > 1:
+            allowed = mx.arange(length)[:, None] >= mx.arange(length)[None, :]
+            scores = mx.where(allowed, scores, -mx.inf)
+        weights = mx.softmax(scores, axis=-1).astype(v.dtype)
+        return weights @ v
+    return mx.fast.scaled_dot_product_attention(q, k, v, scale=scale, mask="causal")
+
+
 class Attention(nn.Module):
     def __init__(self, cfg: OuroConfig):
         super().__init__()
@@ -101,9 +123,7 @@ class Attention(nn.Module):
 
         q, k, v = heads(q), heads(self.k_proj(x)), heads(v)
         q, k = rotate(q, cos, sin), rotate(k, cos, sin)
-        y = mx.fast.scaled_dot_product_attention(
-            q, k, v, scale=self.head_dim**-0.5, mask="causal" if T > 1 else None
-        )
+        y = causal_attention(q, k, v)
         return self.o_proj(y.transpose(0, 2, 1, 3).reshape(B, T, -1))
 
 

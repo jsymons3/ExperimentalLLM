@@ -15,7 +15,8 @@ own weights frozen, and asks three questions:
 3. **What do small adapters add, and could they do the job without a
    table?**
 
-None of this has been trained on the real model with MLX. See "Status".
+The 64-fact check passed on an Apple GPU on November 14, 2026. The full-size
+sweep is being staged; its results are not established. See "Status".
 
 ## Setup
 
@@ -156,8 +157,10 @@ comparison finishes first.
 
 In `table_adapters` and `latent` the adapters are trained on two-step
 questions only. A one-step question still passes through them, but sends them
-no training signal. Adapters could otherwise memorise the facts themselves,
-and the run could not tell where a fact was stored.
+no training signal. This removes direct one-step supervision of the adapters;
+chain labels can still teach them factual information. Use the table-off
+interventions to measure dependence rather than assuming every fact is stored
+only in the table.
 
 Extra runs, left out because each one shortens the others: `table_latent`
 (one pass with no adapters), `latent_untaught` (one pass, graded on the final
@@ -231,6 +234,25 @@ questions). Add them with `--only`.
 
 ## Status
 
+### Mac preflight, November 14, 2026
+
+- The first real-model training attempt on MLX 0.32.4 hit a Metal attention
+  error: its short-sequence vector kernel did not provide the logsumexp
+  required for backpropagation. For short sequences with wide heads, the port
+  now uses the equivalent explicit causal attention calculation. Longer
+  sequences and the tiny model's narrow heads retain the previous path.
+- All 38 Ouro tests pass, including compiled gradient checks at the real
+  model's head width. Four comparison prompts retain the original next-token
+  prediction. The 16-bit logits are not bit-identical: mean absolute differences
+  on those prompts are 0.021 to 0.049, and maximum differences 0.219 to 0.719.
+- The real frozen model, in its stored bfloat16 format, learned all 64 facts
+  in the 300-step check: 100% recall with the table and 0% without, including
+  the facts excluded from chain training. Peak memory was 8.33 GB and training
+  averaged 452 ms per step. This validates the small check, not the 2,160-fact
+  sweep or long-run stability.
+
+### Earlier checks before the Mac preflight
+
 Checked while building, on a Linux machine with no GPU:
 
 - **The port matches the original.** On the real weights, in 32-bit, this
@@ -278,7 +300,7 @@ Checked while building, on a Linux machine with no GPU:
     evaluations, and it ended with held-out 2nd at 23%. That low figure did
     not hold.
 
-Not checked:
+Not checked at that earlier stage:
 
 - **Training the real model with MLX.** No step of the real runs has been
   taken on an Apple GPU, so the speed, the memory use and the time per run

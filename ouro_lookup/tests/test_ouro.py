@@ -4,7 +4,32 @@ import mlx.core as mx
 import numpy as np
 import pytest
 
-from ouro_lookup.ouro import OuroConfig, load_ouro, rotary_tables, rotate
+from ouro_lookup.ouro import OuroConfig, causal_attention, load_ouro, rotary_tables, rotate
+
+
+@pytest.mark.parametrize("length", [1, 6, 9])
+def test_real_head_width_short_attention_matches_fused_and_has_gradients(length):
+    """The tiny model's width misses the Metal vector-kernel VJP failure."""
+    mx.random.seed(17)
+    q, k, v = [mx.random.normal((2, 16, length, 128)).astype(mx.bfloat16) for _ in range(3)]
+    reference = mx.fast.scaled_dot_product_attention(
+        q, k, v, scale=128**-0.5, mask="causal" if length > 1 else None,
+    )
+    actual = causal_attention(q, k, v)
+    assert actual.dtype == mx.bfloat16
+    assert np.allclose(np.array(actual.astype(mx.float32)),
+                       np.array(reference.astype(mx.float32)), atol=0.025, rtol=0.025)
+
+    def loss(q, k, v):
+        return causal_attention(q, k, v).astype(mx.float32).square().mean()
+
+    value, grads = mx.compile(mx.value_and_grad(loss, argnums=(0, 1, 2)))(q, k, v)
+    mx.eval(value, grads)
+    assert np.isfinite(value.item())
+    assert all(np.isfinite(np.array(g.astype(mx.float32))).all() for g in grads)
+    assert np.any(np.array(grads[2].astype(mx.float32)) != 0)
+    if length > 1:
+        assert all(np.any(np.array(g.astype(mx.float32)) != 0) for g in grads[:2])
 
 
 def test_loads_and_runs(tiny_dir):

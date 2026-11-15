@@ -23,9 +23,9 @@ DEFAULT_WEIGHTS = "data/ouro-1.4b"
 #       after loop k is also graded: it must read as the intermediate answer
 #       on a two-step question, and as the answer on a one-step question.
 #
-# adapters_learn "chains" trains the adapters on two-step questions only, so
-# the facts themselves can only be stored in the table; "all" trains them on
-# every question.
+# adapters_learn "chains" trains the adapters on two-step questions only;
+# "all" trains them on every question. Chain labels still contain factual
+# information, so this restriction alone does not locate all facts in the table.
 VARIANTS = {
     "table": dict(
         about="frozen Ouro plus the table; two-step questions go through a written note",
