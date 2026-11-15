@@ -232,6 +232,73 @@ def test_takeover_variants():
     assert cfg.seq_len == 32 and cfg.steps == 7
 
 
+@pytest.mark.parametrize("peak", [5e-4, 2e-4])
+def test_extended_schedule_preserves_history_and_decays_smoothly(peak):
+    original = takeover.build_config("table", steps=7800)
+    cfg = takeover.build_config("table", steps=14900, schedule_initial_steps=7800,
+                                schedule_transition_step=925)
+    steps = mx.arange(14901, dtype=mx.uint64)
+    rates = np.array(takeover.takeover_learning_rate(cfg, peak)(steps))
+    old = np.array(takeover.learning_rate(original, peak)(steps))
+    np.testing.assert_array_equal(rates[:926], old[:926])
+    assert rates[-1] == pytest.approx(peak * cfg.lr_final)
+    assert np.all(np.diff(rates[cfg.warmup:]) <= 0)
+    assert rates[926] > old[926]  # slower decay after the preserved prefix
+    args = takeover.parse_args(["--out", "x", "--steps", "14900",
+                                "--schedule-initial-steps", "7800",
+                                "--schedule-transition-step", "925"])
+    assert takeover.config_from_args(args) == cfg
+    with pytest.raises(ValueError):
+        takeover.takeover_learning_rate(takeover.build_config(
+            "table", steps=14900, schedule_initial_steps=7800), peak)
+
+
+@pytest.mark.parametrize("variant", ["table", "dense", "adapters"])
+def test_extended_resume_matches_uninterrupted_training(
+    variant, tiny_dir, tiny_text, tmp_path, monkeypatch,
+):
+    original = small_takeover(variant, tiny_dir, tiny_text, steps=12, eval_every=24)
+    extended = small_takeover(variant, tiny_dir, tiny_text, steps=24, eval_every=24,
+                              schedule_initial_steps=12, schedule_transition_step=6)
+    # Interrupt after update 6 has completed but before Python increments
+    # its counter. This is the actual SIGINT boundary seen on the Mac.
+    finite = np.isfinite
+    calls = 0
+
+    def interrupt_after_update(value):
+        nonlocal calls
+        calls += 1
+        if calls == 6:
+            raise KeyboardInterrupt
+        return finite(value)
+
+    resumed = tmp_path / "resumed"
+    with monkeypatch.context() as patch:
+        patch.setattr(takeover.np, "isfinite", interrupt_after_update)
+        with pytest.raises(SystemExit) as stopped:
+            takeover.run(original, resumed, probes=FAKE_PROBES)
+        assert stopped.value.code == 130
+    arrays, meta = mx.load(str(resumed / "checkpoint.safetensors"), return_metadata=True)
+    group = "tables" if variant == "table" else variant
+    assert int(meta["step"]) == 5
+    assert arrays[f"optim.{group}.step"].item() == 6
+    takeover.run(extended, resumed, resume=True, probes=FAKE_PROBES)
+    takeover.run(extended, tmp_path / "fresh", probes=FAKE_PROBES)
+    got = mx.load(str(resumed / "checkpoint.safetensors"))
+    expected = mx.load(str(tmp_path / "fresh" / "checkpoint.safetensors"))
+    assert got.keys() == expected.keys()
+    for name in got:
+        actual, reference = np.array(got[name]), np.array(expected[name])
+        if variant == "table":
+            # Compiling the extended schedule changes rounding in the
+            # initial updates (about 1e-7); discrete top-k routing can
+            # amplify it. Compare tensor norms, not bitwise trajectories.
+            relative = np.linalg.norm(actual - reference) / max(np.linalg.norm(reference), 1e-9)
+            assert relative < 0.005, (name, relative)
+        else:
+            np.testing.assert_allclose(actual, reference, atol=1e-6, rtol=1e-5, err_msg=name)
+
+
 def test_imitation_is_perfect_when_nothing_changed(tiny_dir, tiny_text):
     model = build(tiny_dir, table_layers=(1,))  # a table that still says nothing
     kl, match, local = takeover.imitation_losses(model, TOKENS)

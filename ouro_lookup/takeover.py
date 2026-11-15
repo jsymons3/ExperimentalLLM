@@ -25,7 +25,7 @@ import json
 import math
 import platform
 import time
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, replace
 from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
@@ -98,6 +98,8 @@ class TakeoverConfig:
     adapter_lr: float = 2e-4
     warmup: int = 200
     lr_final: float = 0.1
+    schedule_initial_steps: int = 0  # optional original budget before an extension
+    schedule_transition_step: int = 0  # preserve that schedule through this step
     weight_decay: float = 0.1  # tables and small MLPs
     grad_clip: float = 1.0
     kl_weight: float = 1.0  # next-token distribution after the last loop
@@ -113,6 +115,49 @@ class TakeoverConfig:
         layers = tuple(self.remove_layers)
         values["table_layers"] = layers if values.pop("table", False) else ()
         return AddonConfig(remove_layers=layers, **values)
+
+
+def takeover_learning_rate(cfg, peak):
+    """Extend a run without changing the learning rates it already used.
+
+    Give every control the same transition, including runs starting fresh.
+    The original ramp/decay is followed until the transition; the remaining
+    decay is stretched to the new end, without a learning-rate jump.
+    """
+    if not cfg.schedule_initial_steps and not cfg.schedule_transition_step:
+        return learning_rate(cfg, peak)
+    initial, transition = cfg.schedule_initial_steps, cfg.schedule_transition_step
+    if not cfg.warmup <= transition < initial <= cfg.steps:
+        raise ValueError("schedule extension needs warmup <= transition < initial <= steps")
+    original = learning_rate(replace(cfg, steps=initial), peak)
+    at_transition = original(mx.array(transition, dtype=mx.uint64))
+
+    def rate(step):
+        progress = mx.clip((step - transition) / (cfg.steps - transition), 0.0, 1.0)
+        extended = at_transition + (peak * cfg.lr_final - at_transition) * progress
+        return mx.where(step < transition, original(step), extended)
+
+    return rate
+
+
+def completed_checkpoint_step(model, optimizers, saved_step):
+    """SIGINT may arrive after an update but before the Python step counter.
+
+    Checkpoint serialization evaluates the pending state. Use the optimizer
+    counter to avoid replaying that completed update's training window.
+    Finished, weights-only checkpoints have no optimizer counter to check.
+    """
+    trainable = model.trainable_parameters()
+    counts = {int(optimizer.state["step"].item())
+              for name, optimizer in optimizers.items() if trainable.get(name)}
+    if counts == {0}:
+        return saved_step
+    if len(counts) != 1 or next(iter(counts)) not in (saved_step, saved_step + 1):
+        raise ValueError(f"checkpoint step {saved_step} disagrees with optimizer steps {counts}")
+    completed = counts.pop()
+    if completed != saved_step:
+        print(f"checkpoint includes completed update {completed}; advancing past saved counter {saved_step}")
+    return completed
 
 
 def build_config(variant, seed=0, addons=None, **overrides):
@@ -156,6 +201,7 @@ def parse_args(argv=None):
     for name, kind in (
         ("seq_len", int), ("batch_size", int), ("steps", int), ("lr", float),
         ("adapter_lr", float), ("warmup", int), ("lr_final", float), ("weight_decay", float),
+        ("schedule_initial_steps", int), ("schedule_transition_step", int),
         ("grad_clip", float), ("kl_weight", float), ("match_weight", float),
         ("local_weight", float), ("eval_every", int), ("log_every", int),
         ("eval_windows", int), ("periodic_windows", int),
@@ -304,14 +350,15 @@ def run(cfg, out_dir, resume=False, time_only=0, compile_step=True, ckpt_minutes
     model, text, encode, start = build_run(cfg)
     probes = Probes(encode, start, probes)
     optimizers = {
-        "tables": optim.AdamW(learning_rate(cfg, cfg.lr), weight_decay=cfg.weight_decay),
-        "dense": optim.AdamW(learning_rate(cfg, cfg.lr), weight_decay=cfg.weight_decay),
-        "adapters": optim.AdamW(learning_rate(cfg, cfg.adapter_lr), weight_decay=0.0),
+        "tables": optim.AdamW(takeover_learning_rate(cfg, cfg.lr), weight_decay=cfg.weight_decay),
+        "dense": optim.AdamW(takeover_learning_rate(cfg, cfg.lr), weight_decay=cfg.weight_decay),
+        "adapters": optim.AdamW(takeover_learning_rate(cfg, cfg.adapter_lr), weight_decay=0.0),
     }
     ckpt_path = out / "checkpoint.safetensors"
     step0 = 0
     if resume and ckpt_path.exists():
         step0 = load_checkpoint(ckpt_path, model, optimizers)
+        step0 = completed_checkpoint_step(model, optimizers, step0)
         print(f"resumed from {ckpt_path} at step {step0}")
     else:
         trainable = model.trainable_parameters()

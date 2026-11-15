@@ -67,6 +67,22 @@ To keep the results, copy `report.md`, `plan.json` and each run's
 `ouro_lookup/results/`, as for stage 1. Checkpoints stay out of the
 repository.
 
+When extending an interrupted take-over run, preserve its original
+learning-rate history with `--schedule-initial-steps OLD_TOTAL` and
+`--schedule-transition-step COMPLETED_UPDATES`, passed through
+`--takeover-extra`. Apply these settings to every take-over control, even
+those not started yet. The original schedule is used up to the transition;
+its remaining decay is then stretched smoothly to the new total. Keep a
+copy of the original plan before revising the saved step count and plan
+signature. Use an interrupted checkpoint with optimizer state for this;
+finished checkpoints retain only the trained additions.
+
+The optimizer counter resolves an interruption arriving just after an
+update but before the logged step counter advances. The resumed run skips
+exactly that many training windows. Sparse routing can amplify small
+floating-point differences after recompilation, so this preserves the
+training protocol without promising bitwise identical weights.
+
 ## Part 1: replacing eight feed-forward modules
 
 ### What is removed
