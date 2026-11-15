@@ -1,0 +1,266 @@
+{
+  "variant": "facts_unsupervised_reader",
+  "seed": 0,
+  "preset": "full",
+  "steps": 64000,
+  "supervised": [],
+  "table_off": [],
+  "params": {
+    "embedding": 2041600,
+    "attention": 65536,
+    "feed_forward": 4260096,
+    "scratchpad": 1664,
+    "other": 768,
+    "core_mlp": 131968,
+    "total": 6501632
+  },
+  "sec_per_step": 0.04254733123974438,
+  "wall_minutes": 45.67577100348038,
+  "peak_memory_gb": 3.08543538,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "default_steps": 2,
+  "tasks": {
+    "facts": {
+      "trained_with_table": true,
+      "accuracy": {
+        "one_hop": 0.9805,
+        "one_hop_held": 0.967,
+        "chain_train": 0.8515,
+        "chain_unseen": 0.563,
+        "chain_held_first": 0.5455,
+        "chain_held_second": 0.2955,
+        "chain_held_both": 0.2948473282442748
+      },
+      "accuracy_table_on": {
+        "one_hop": 0.9805,
+        "one_hop_held": 0.967,
+        "chain_train": 0.8515,
+        "chain_unseen": 0.563,
+        "chain_held_first": 0.5455,
+        "chain_held_second": 0.2955,
+        "chain_held_both": 0.2948473282442748
+      },
+      "accuracy_table_off": {
+        "one_hop": 0.3865,
+        "one_hop_held": 0.3955,
+        "chain_train": 0.408,
+        "chain_unseen": 0.227,
+        "chain_held_first": 0.1705,
+        "chain_held_second": 0.114,
+        "chain_held_both": 0.0982824427480916
+      },
+      "accuracy_by_steps": {
+        "1": {
+          "one_hop": 0.952,
+          "one_hop_held": 0.934,
+          "chain_train": 0.234,
+          "chain_unseen": 0.135,
+          "chain_held_first": 0.094,
+          "chain_held_second": 0.063,
+          "chain_held_both": 0.05152671755725191
+        },
+        "2": {
+          "one_hop": 0.9805,
+          "one_hop_held": 0.967,
+          "chain_train": 0.8515,
+          "chain_unseen": 0.563,
+          "chain_held_first": 0.5455,
+          "chain_held_second": 0.2955,
+          "chain_held_both": 0.2948473282442748
+        },
+        "3": {
+          "one_hop": 0.983,
+          "one_hop_held": 0.9685,
+          "chain_train": 0.8805,
+          "chain_unseen": 0.598,
+          "chain_held_first": 0.5775,
+          "chain_held_second": 0.3155,
+          "chain_held_both": 0.3148854961832061
+        },
+        "4": {
+          "one_hop": 0.983,
+          "one_hop_held": 0.968,
+          "chain_train": 0.8875,
+          "chain_unseen": 0.6015,
+          "chain_held_first": 0.5825,
+          "chain_held_second": 0.3175,
+          "chain_held_both": 0.32156488549618323
+        }
+      },
+      "majority_baseline": {
+        "one_hop": 0.04,
+        "one_hop_held": 0.0365,
+        "chain_train": 0.151,
+        "chain_unseen": 0.1425,
+        "chain_held_first": 0.1435,
+        "chain_held_second": 0.1345,
+        "chain_held_both": 0.1269083969465649
+      },
+      "two_call": {
+        "chain_train": {
+          "1": {
+            "n": 2000,
+            "native": 0.8515,
+            "two_call": 0.9085,
+            "both_known": 1780,
+            "native_on_both_known": 1560
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.8515,
+            "two_call": 0.9725,
+            "both_known": 1931,
+            "native_on_both_known": 1668
+          }
+        },
+        "chain_unseen": {
+          "1": {
+            "n": 2000,
+            "native": 0.563,
+            "two_call": 0.9085,
+            "both_known": 1785,
+            "native_on_both_known": 1064
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.563,
+            "two_call": 0.9745,
+            "both_known": 1940,
+            "native_on_both_known": 1113
+          }
+        },
+        "chain_held_first": {
+          "1": {
+            "n": 2000,
+            "native": 0.5455,
+            "two_call": 0.8975,
+            "both_known": 1775,
+            "native_on_both_known": 1026
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.5455,
+            "two_call": 0.965,
+            "both_known": 1922,
+            "native_on_both_known": 1077
+          }
+        },
+        "chain_held_second": {
+          "1": {
+            "n": 2000,
+            "native": 0.2955,
+            "two_call": 0.815,
+            "both_known": 1607,
+            "native_on_both_known": 536
+          },
+          "2": {
+            "n": 2000,
+            "native": 0.2955,
+            "two_call": 0.932,
+            "both_known": 1856,
+            "native_on_both_known": 573
+          }
+        },
+        "chain_held_both": {
+          "1": {
+            "n": 1048,
+            "native": 0.2948473282442748,
+            "two_call": 0.8234732824427481,
+            "both_known": 848,
+            "native_on_both_known": 286
+          },
+          "2": {
+            "n": 1048,
+            "native": 0.2948473282442748,
+            "two_call": 0.924618320610687,
+            "both_known": 962,
+            "native_on_both_known": 300
+          }
+        }
+      },
+      "scratchpad": {
+        "chain_train": {
+          "bridge_written": 0.017,
+          "answer_written": 0.234,
+          "interventions": {
+            "normal": 0.8515,
+            "cleared": 0.76,
+            "shuffled": 0.488,
+            "true_bridge": 0.9715
+          },
+          "subject_hidden": 0.5335,
+          "fresh_question": 0.51
+        },
+        "chain_unseen": {
+          "bridge_written": 0.0245,
+          "answer_written": 0.135,
+          "interventions": {
+            "normal": 0.563,
+            "cleared": 0.4395,
+            "shuffled": 0.338,
+            "true_bridge": 0.9345
+          },
+          "subject_hidden": 0.393,
+          "fresh_question": 0.4005
+        },
+        "chain_held_first": {
+          "bridge_written": 0.041,
+          "answer_written": 0.094,
+          "interventions": {
+            "normal": 0.5455,
+            "cleared": 0.435,
+            "shuffled": 0.3245,
+            "true_bridge": 0.8945
+          },
+          "subject_hidden": 0.3905,
+          "fresh_question": 0.3895
+        },
+        "chain_held_second": {
+          "bridge_written": 0.031,
+          "answer_written": 0.063,
+          "interventions": {
+            "normal": 0.2955,
+            "cleared": 0.22,
+            "shuffled": 0.18,
+            "true_bridge": 0.747
+          },
+          "subject_hidden": 0.247,
+          "fresh_question": 0.262
+        },
+        "chain_held_both": {
+          "bridge_written": 0.04866412213740458,
+          "answer_written": 0.05152671755725191,
+          "interventions": {
+            "normal": 0.2948473282442748,
+            "cleared": 0.22423664122137404,
+            "shuffled": 0.19083969465648856,
+            "true_bridge": 0.7194656488549618
+          },
+          "subject_hidden": 0.2643129770992366,
+          "fresh_question": 0.28435114503816794
+        }
+      },
+      "reader": {
+        "one_hop": {
+          "n": 526,
+          "as_a_question": 0.9638783269961977,
+          "through_note": 0.9448669201520913,
+          "through_note_question_shown": 0.8688212927756654
+        },
+        "one_hop_held": {
+          "n": 445,
+          "as_a_question": 0.9303370786516854,
+          "through_note": 0.9303370786516854,
+          "through_note_question_shown": 0.8134831460674158
+        }
+      }
+    }
+  },
+  "table": {
+    "entries": 16384,
+    "used_frac": 0.69207763671875,
+    "effective_frac": 0.3130453949387393
+  }
+}

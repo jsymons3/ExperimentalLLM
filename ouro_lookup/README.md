@@ -15,8 +15,12 @@ own weights frozen, and asks three questions:
 3. **What do small adapters add, and could they do the job without a
    table?**
 
-The 64-fact check passed on an Apple GPU on November 14, 2026. The full-size
-sweep is being staged; its results are not established. See "Status".
+All four full-size runs completed on an Apple GPU on November 15, 2026.
+The table works with a frozen core and a written handoff, but adapters alone
+match its accuracy with about 43 times fewer trainable parameters. The latent
+route fails on new chains despite recalling their facts. See the
+[results and interpretation](results/mac-2026-11-14/README.md) and
+[full diagnostic report](results/mac-2026-11-14/report.md).
 
 ## Setup
 
@@ -234,6 +238,44 @@ questions). Add them with `--only`.
 
 ## Status
 
+### Completed Mac sweep, November 15, 2026
+
+All four variants completed 8,400 steps, seed 0, on 2,160 invented facts.
+Ouro's original weights stayed frozen in every run. The sequential sweep ran
+from 01:21 to 08:45 Central, after the eight reading tests finished.
+
+| Run | One-step recall | Unseen chains | Held-out 2nd | Held-out both | Trainable parameters |
+|---|---:|---:|---:|---:|---:|
+| `table` | 100.0% | 100.0% | 99.8% | 97.8% | 67,666,176 |
+| `table_adapters` | 100.0% | 100.0% | 100.0% | 100.0% | 69,239,040 |
+| `latent` | 100.0% | 3.6% | 0.2% | 0.7% | 69,239,040 |
+| `adapters` | 100.0% | 100.0% | 100.0% | 100.0% | 1,572,864 |
+
+Every constituent fact is taught individually; held-out facts are excluded
+from chain training. Final evaluations use up to 500 questions per group.
+Shuffling the notes reduces held-out second-hop accuracy to 1.0% in all
+three written-note runs. Disabling the table in the table-only model reduces
+one-step recall to 0%; disabling adapters in the adapter-only model does too.
+
+The memory is usable, but has no demonstrated accuracy or capacity advantage
+here. Adapters use less peak memory (7.0 versus 9.2 GB) and cause a smaller rise
+in the small ordinary-text loss check (2.970 to 3.311, versus 4.037 for the
+table). The table is slightly faster per training step (693 versus 726 ms),
+but these are not inference latency or matched-capacity measurements.
+
+The latent model writes a readable correct bridge at loop 2 on 100% of unseen
+chains, yet answers only 3.6% after loop 4; two separate questions reach 100%.
+This diagnoses a failure to reuse known facts under this recipe. Written
+handoffs use two full calls and external question construction, so this does
+not isolate discreteness from context reset, extra compute or the supplied
+procedure, or show that continuous reasoning is inherently incapable.
+
+The [archive](results/mac-2026-11-14/README.md) contains the original report,
+plan, configurations, learning curves, final diagnostics and
+[provenance manifest](results/mac-2026-11-14/manifest.json). Checkpoints are
+hashed in the manifest but remain local. One seed and a modest fact set do
+not establish scaling, continual-update, gating or knowledge-shedding benefits.
+
 ### Mac preflight, November 14, 2026
 
 - The first real-model training attempt on MLX 0.32.4 hit a Metal attention
@@ -300,15 +342,9 @@ Checked while building, on a Linux machine with no GPU:
     evaluations, and it ended with held-out 2nd at 23%. That low figure did
     not hold.
 
-Not checked at that earlier stage:
-
-- **Training the real model with MLX.** No step of the real runs has been
-  taken on an Apple GPU, so the speed, the memory use and the time per run
-  are unknown until the sweep times them. Run steps 2 and 3 above first.
-- **The full-size result.** Whether the note or the loops chain held-out
-  facts at 2,160 facts is what the runs are for.
-- **Long 16-bit training.** Three steps in 16-bit behaved; thousands have
-  not been tried. If a loss turns non-finite, rerun with `--dtype float32`.
+The earlier checks left Apple GPU training, the 2,160-fact result and long
+16-bit training untested. The completed Mac sweep above now supplies all
+three: four full-size runs finished in stored bfloat16 with final diagnostics.
 
 ## Files
 
@@ -324,4 +360,4 @@ Not checked at that earlier stage:
 | `report.py` | `report.md` from finished runs |
 | `download.py` | Fetches and checks the model |
 | `tiny.py` | A tiny random stand-in for tests and dry runs |
-| `tests/` | 35 tests |
+| `tests/` | 38 tests |

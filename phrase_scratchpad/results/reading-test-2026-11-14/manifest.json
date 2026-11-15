@@ -1,0 +1,116 @@
+{
+  "experiment": "reading-test",
+  "source_commit": "c5609bf21cda6709dada0b59282b405966f442ac",
+  "source_branch": "codex/reading-ouro-overnight",
+  "command": [
+    "/bin/bash",
+    "scripts/run_reading_test.sh"
+  ],
+  "queue_started_at_chicago": "2026-11-14T19:36:52.188356-06:00",
+  "archived_at_chicago": "2026-11-15T01:21:26.275669-06:00",
+  "steps_per_run": 64000,
+  "runs": [
+    "facts_reader_s0",
+    "facts_s0",
+    "facts_unsupervised_reader_s0",
+    "facts_unsupervised_s0",
+    "facts_reader_s1",
+    "facts_s1",
+    "facts_unsupervised_reader_s1",
+    "facts_unsupervised_s1"
+  ],
+  "files": {
+    "report.md": "175dc02ec6cc0945cb00cafb899d6ca40035aa49177b6058008a31384f695b54",
+    "plan.json": "bf6b9b9a96ef7e2efce8136e949ee17e00d4f7444c5741ede4cbc8d0726f8f7a",
+    "facts_reader_s0/config.json": "4a405baaf5d6ee48c27b6f4d8f801fbd3e8b4ac89ad0813a0735065a72132ec9",
+    "facts_reader_s0/final.json": "e2024a226148cf9dd76c1e1f53bae8dad07974db7518d895269dfb81d20af7cd",
+    "facts_reader_s0/metrics.jsonl": "1ca84ad6f1d1c132ad9e3a796cbf0b48fbe5b1cf8dedb2cf91cc5cb7657a031d",
+    "facts_s0/config.json": "92985a96779172f434b160224b2b56fa636447e0793d7c183b64347fb821d0c5",
+    "facts_s0/final.json": "fd222da019d9a8b5119d2f11e9638646d3832d15e68566ae313a67dd17cffdb9",
+    "facts_s0/metrics.jsonl": "0e787167b6c8f46f831fd36ea7dfd2732598ec438d0f0de2f66329fd5d3f00f9",
+    "facts_unsupervised_reader_s0/config.json": "b0c1bd1f9c16145f3c2ec15e79448fa40dd4661c6142e32ca334bfb5dcd2056f",
+    "facts_unsupervised_reader_s0/final.json": "3e78ac329184e8535a4e0f65b47acb0b47784832889a806a06bd4c38c9bb8947",
+    "facts_unsupervised_reader_s0/metrics.jsonl": "31551207fcf76c4228f6e9baca0f4cc4c5ff022f1dbd9b2eb318e1bff76291bb",
+    "facts_unsupervised_s0/config.json": "3d4a7383d615092a2d92e63c86c20220bf11e066ae6d2a352468592ca5c4f6a4",
+    "facts_unsupervised_s0/final.json": "966d58af9f8ba3e9d77b2c90c90d9020ecf6141c4e4db400ffb446ba7c5b3952",
+    "facts_unsupervised_s0/metrics.jsonl": "61f042d9f2157b5801819a05699680464b3bfc63df37cf5a6d97e988f96ca322",
+    "facts_reader_s1/config.json": "e242cfd81f72fbf744a9364c2c8a9bb9ba2b6d36eb441ac8e583cb80be47cdd3",
+    "facts_reader_s1/final.json": "b48027070b1d7b9804dfdf10efc242d1de9cc07f3d075636ea524a06808e0cc6",
+    "facts_reader_s1/metrics.jsonl": "6b0f75bd3588fd352522eec343236fbf166c26d58b10aa1d910fd7e401d2ecb7",
+    "facts_s1/config.json": "4787acb6e6a44f2a431c9d27eeb040bacb94080ddb7b83c0784dce7053236618",
+    "facts_s1/final.json": "0941a4ab7b474eb9558ff66df19e1c1d1b21e956a1d72a014269401aabc4245b",
+    "facts_s1/metrics.jsonl": "e879d43ee4643f341184de21b910a0e368d0ce7b6e7eb0e787e65508ea8a4d9a",
+    "facts_unsupervised_reader_s1/config.json": "2d2938e77829e77f895e9843803954ab24d7c3cf6196b78c79fe2d07795a24f4",
+    "facts_unsupervised_reader_s1/final.json": "20f122d12b1339bc893e2ff620e81e6a9cac5f4cb34be5543fc1d735f5d24da6",
+    "facts_unsupervised_reader_s1/metrics.jsonl": "61020db5ca8955c93ec8dcacdf4177922da5399acc15c55328e227cfeceba6e9",
+    "facts_unsupervised_s1/config.json": "c8ad214805e6e82519d87e6e4e8ea84c6b23b59bc3165d1c72b2c286d1362d0b",
+    "facts_unsupervised_s1/final.json": "d8a83ab4b16b82a91d5f26789a2275f8e159cf75e0162c079d8e206dbf6115bf",
+    "facts_unsupervised_s1/metrics.jsonl": "409a08c9fad7a92c109a8128c04a411a0d9f05e7ec5086c99979c1ce1095deea"
+  },
+  "checkpoints": {
+    "facts_reader_s0": {
+      "local_path": "runs/reading-test/facts_reader_s0/checkpoint.safetensors",
+      "bytes": 76443416,
+      "sha256": "60421e2bded857c4ab9f841868aee4245024378f7fa2222483f1e624bbbc89f9"
+    },
+    "facts_s0": {
+      "local_path": "runs/reading-test/facts_s0/checkpoint.safetensors",
+      "bytes": 76443416,
+      "sha256": "5e1886875a4da5ecd518a82abb637051d8bf875a2c339875c4525a2352e8236f"
+    },
+    "facts_unsupervised_reader_s0": {
+      "local_path": "runs/reading-test/facts_unsupervised_reader_s0/checkpoint.safetensors",
+      "bytes": 78028628,
+      "sha256": "3a0e15cdf711ab38edb2532c497a9fa9ade0789c6edcd32d8d49a55770c65d7a"
+    },
+    "facts_unsupervised_s0": {
+      "local_path": "runs/reading-test/facts_unsupervised_s0/checkpoint.safetensors",
+      "bytes": 78028628,
+      "sha256": "f1862832a4f152bef1b50814de193b31deacb93668bafa6e7edd0599f0bf85fc"
+    },
+    "facts_reader_s1": {
+      "local_path": "runs/reading-test/facts_reader_s1/checkpoint.safetensors",
+      "bytes": 76443416,
+      "sha256": "dd4afdc3e11d0b430de127e837fbc86a053a5bc099e795c790615d6f2472a489"
+    },
+    "facts_s1": {
+      "local_path": "runs/reading-test/facts_s1/checkpoint.safetensors",
+      "bytes": 76443416,
+      "sha256": "fb2036584aa5819c26960ceeb07de0f33663def3958c3c1909b1710a1be76b64"
+    },
+    "facts_unsupervised_reader_s1": {
+      "local_path": "runs/reading-test/facts_unsupervised_reader_s1/checkpoint.safetensors",
+      "bytes": 78028628,
+      "sha256": "4f5c81a4c8afa979e6ea466642046207e67c3622cdcf1c6553f8b6ba56e26f64"
+    },
+    "facts_unsupervised_s1": {
+      "local_path": "runs/reading-test/facts_unsupervised_s1/checkpoint.safetensors",
+      "bytes": 78028628,
+      "sha256": "afb53674fd122a73caa39f824538e86fa189ea266e932d8e92bde9b67061b3d0"
+    }
+  },
+  "validation": {
+    "reading_tests": "31 passed in 12.80s",
+    "ouro_tests": "38 passed in 4.01s",
+    "existing_tests": "58 passed as part of the 93-test batch before the Ouro attention fix",
+    "quick_check": {
+      "facts": 64,
+      "steps": 300,
+      "table_on": 1.0,
+      "table_off": 0.0,
+      "passed": true
+    },
+    "model": {
+      "repository": "ByteDance/Ouro-1.4B",
+      "revision": "574fa66cb8bf5abdc979642d01cf2b79b16bfab1",
+      "verified_sha256": {
+        "config.json": "ce9cc13da41591b8b4deca053d7dfee06424c0228628ee862ea86d725bc163f3",
+        "tokenizer.json": "fcb808fe5e7642f5299be28aea07fc7f6d4f4364c3ac5e408e15a772cbc8fa8d",
+        "model.safetensors": "58872a72616c736595b8b7662079c5b12c5a162ec16eae94f21c348dfa9885af"
+      }
+    },
+    "attention_fix_commit": "c5609bf21cda6709dada0b59282b405966f442ac",
+    "archiver": "Verified complete-run acceptance, incomplete-run rejection, and checkpoint exclusion."
+  },
+  "note": "Checkpoints remain local. No commit or push is performed by this queue."
+}

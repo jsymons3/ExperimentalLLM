@@ -20,8 +20,11 @@ All five full-size runs completed on November 14, 2026. The supervised fact
 scratchpad works with multi-word names, but the mixed run does not show transfer
 of chaining from arithmetic and stories. See [the completed results](#completed-overnight-results-november-14).
 
-The next run is [the reading test](#the-reading-test-next-run). It is set up
-and checked at small size, and not yet run at full size.
+The [reading test](#the-reading-test) completed eight full-size runs on
+November 15, 2026. Across two seeds, teaching known facts through the note
+raises supervised held-out second-step accuracy from 78.6% to 90.5%, but
+does not make useful note writing emerge without intermediate supervision.
+See the [results and interpretation](results/reading-test-2026-11-14/README.md).
 
 ## Setup
 
@@ -75,7 +78,7 @@ A single run, for example a quick look at arithmetic:
 .venv/bin/python -m phrase_scratchpad.train --variant maths --preset smoke --steps 3000 --out runs/phrase-smoke/maths
 ```
 
-## The reading test (next run)
+## The reading test
 
 ### Why
 
@@ -427,6 +430,35 @@ Each run has one seed. Small gaps are noise.
   stories and 1,919 test stories with two relations are used.
 
 ## Status
+
+### Completed reading test (November 15)
+
+Four variants, each with seeds 0 and 1, completed 64,000 steps between
+November 14 at 19:36 and November 15 at 01:21 Central. The original
+[report](results/reading-test-2026-11-14/report.md),
+[interpretation](results/reading-test-2026-11-14/README.md), and
+[manifest](results/reading-test-2026-11-14/manifest.json) accompany every
+configuration, learning curve and final diagnostic. Checkpoints remain local.
+
+| Run | Held-out 2nd | Correct bridge written | Correct bridge supplied | Notes shuffled | Original subject hidden |
+|---|---:|---:|---:|---:|---:|
+| `facts` | 78.6% | 99.2% | 78.9% | 7.6% | 92.1% |
+| `facts_reader` | 90.5% | 99.3% | 90.7% | 6.3% | 92.7% |
+| `facts_unsupervised` | 26.3% | 1.4% | 34.8% | 22.4% | 26.9% |
+| `facts_unsupervised_reader` | 31.0% | 2.2% | 79.5% | 17.2% | 29.9% |
+
+Values are means over the two seeds. Reader training improves the supervised
+result in both seeds (78.8 to 89.1%, and 78.5 to 91.8%). However, simply hiding
+the original subject nearly eliminates the control's gap. This supports
+interference from the still-visible question as a major cause of failure,
+rather than an inability to read the name from the note at all.
+
+Without intermediate supervision, reader training makes a supplied correct
+bridge usable, but the model still rarely writes that bridge itself. Reading
+and writing are separate obstacles; fixing reading does not demonstrate
+discovery of the procedure. All constituent facts are taught, and reader
+variants explicitly train their use through the note. This is neither unseen
+fact acquisition nor transfer to an untrained input format.
 
 ### Completed overnight results (November 14)
 

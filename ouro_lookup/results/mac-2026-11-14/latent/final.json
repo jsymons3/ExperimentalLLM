@@ -1,0 +1,192 @@
+{
+  "variant": "latent",
+  "about": "table plus adapters; two-step questions answered in one pass through Ouro's loops, with the intermediate answer taught at loop 2",
+  "seed": 0,
+  "preset": "full",
+  "steps": 8400,
+  "facts": {
+    "people": 360,
+    "relations": [
+      "mentor",
+      "manager",
+      "doctor",
+      "lawyer",
+      "landlord",
+      "coach"
+    ],
+    "facts": 2160,
+    "facts_never_in_a_training_chain": 216,
+    "chains": 12960,
+    "training_chains": 7346,
+    "one_step_tokens": 6,
+    "two_step_tokens": 9,
+    "example_one_step": "The mentor of Ernst is",
+    "example_two_step": "The mentor of the mentor of Ernst is",
+    "all_chain_unseen": 3148,
+    "all_chain_held_first": 1160,
+    "all_chain_held_second": 1170,
+    "all_chain_held_both": 136
+  },
+  "params": {
+    "table": 67666176,
+    "adapters": 1572864,
+    "trained": 69239040,
+    "frozen": 1434652673
+  },
+  "sec_per_step": 0.7777657933174522,
+  "wall_minutes": 112.74279655486656,
+  "peak_memory_gb": 9.643384102,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "chain_mode": "latent",
+  "accuracy": {
+    "one_hop": 1.0,
+    "one_hop_held": 1.0,
+    "chain_train": 1.0,
+    "chain_unseen": 0.036,
+    "chain_held_first": 0.008,
+    "chain_held_second": 0.002,
+    "chain_held_both": 0.007352941176470588
+  },
+  "accuracy_original": {
+    "one_hop": 0.0,
+    "one_hop_held": 0.0,
+    "chain_train": 0.0,
+    "chain_unseen": 0.0,
+    "chain_held_first": 0.0,
+    "chain_held_second": 0.0,
+    "chain_held_both": 0.0
+  },
+  "guess_rate": {
+    "one_hop": 0.006,
+    "one_hop_held": 0.009259259259259259,
+    "chain_train": 0.006,
+    "chain_unseen": 0.006,
+    "chain_held_first": 0.012,
+    "chain_held_second": 0.014,
+    "chain_held_both": 0.014705882352941176
+  },
+  "chains": {
+    "chain_train": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.238,
+          1.0,
+          0.54,
+          0.0
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.044,
+          1.0
+        ]
+      }
+    },
+    "chain_unseen": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 0.036,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.238,
+          1.0,
+          0.598,
+          0.104
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.036
+        ]
+      }
+    },
+    "chain_held_first": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 0.008,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.136,
+          1.0,
+          0.548,
+          0.144
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.008
+        ]
+      }
+    },
+    "chain_held_second": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 0.002,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.242,
+          1.0,
+          0.556,
+          0.092
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.002
+        ]
+      }
+    },
+    "chain_held_both": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 0.007352941176470588,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.11764705882352941,
+          1.0,
+          0.5514705882352942,
+          0.07352941176470588
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.007352941176470588
+        ]
+      }
+    }
+  },
+  "ordinary_text_loss": {
+    "original": 2.970211392357236,
+    "with_additions": 6.462651999997886
+  },
+  "accuracy_table_off": {
+    "one_hop": 0.0,
+    "one_hop_held": 0.0,
+    "chain_train": 0.006,
+    "chain_unseen": 0.002,
+    "chain_held_first": 0.002,
+    "chain_held_second": 0.002,
+    "chain_held_both": 0.0
+  },
+  "accuracy_adapters_off": {
+    "one_hop": 0.264,
+    "one_hop_held": 0.25925925925925924,
+    "chain_train": 0.002,
+    "chain_unseen": 0.0,
+    "chain_held_first": 0.002,
+    "chain_held_second": 0.002,
+    "chain_held_both": 0.0
+  },
+  "table_used": [
+    0.575927734375
+  ]
+}

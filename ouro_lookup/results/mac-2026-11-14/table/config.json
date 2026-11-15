@@ -1,0 +1,32 @@
+{
+  "variant": "table",
+  "preset": "full",
+  "seed": 0,
+  "weights": "data/ouro-1.4b",
+  "dtype": "stored",
+  "loops": 0,
+  "world": {
+    "n_people": 360,
+    "n_relations": 6
+  },
+  "addons": {
+    "adapter_rank": 0
+  },
+  "chain_mode": "note",
+  "teach_loop": 0,
+  "teach_weight": 1.0,
+  "adapters_learn": "chains",
+  "steps": 8400,
+  "batch_size": 64,
+  "two_hop_frac": 0.5,
+  "lr": 0.0005,
+  "adapter_lr": 0.0002,
+  "warmup": 200,
+  "lr_final": 0.1,
+  "weight_decay": 0.1,
+  "grad_clip": 1.0,
+  "eval_every": 210,
+  "log_every": 50,
+  "eval_size": 500,
+  "periodic_size": 128
+}

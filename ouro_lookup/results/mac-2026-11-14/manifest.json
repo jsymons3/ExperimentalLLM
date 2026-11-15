@@ -1,0 +1,80 @@
+{
+  "experiment": "ouro-lookup",
+  "source_commit": "c5609bf21cda6709dada0b59282b405966f442ac",
+  "source_branch": "codex/reading-ouro-overnight",
+  "command": [
+    "/bin/bash",
+    "scripts/run_ouro_lookup.sh"
+  ],
+  "queue_started_at_chicago": "2026-11-14T19:36:52.188356-06:00",
+  "archived_at_chicago": "2026-11-15T08:45:52.382535-06:00",
+  "steps_per_run": 8400,
+  "runs": [
+    "table",
+    "table_adapters",
+    "latent",
+    "adapters"
+  ],
+  "files": {
+    "report.md": "5d12562392b251973f50936471cbbef247e77f636f75bb2a77ba0032b38ae878",
+    "plan.json": "39f2db295d4fdc4632aa9e9d7f51361af713f9da92163f0921925026b6f8ec06",
+    "table/config.json": "b1e43a9aa4842bd2a29ca48650d8b2e02adec0d9914d1819c24dc921a2b3a3f3",
+    "table/final.json": "12c5a763d639fc0a80696222e5cb2733f17c41979a1640be8e4cf0058291b225",
+    "table/metrics.jsonl": "12fea817ed650faaecb4083a6da6b49a5c26a69edbe136065977325fea40e6bd",
+    "table_adapters/config.json": "dcf1618558ce1c0fee83171967a2b8b059518ced75a0425141d9f298e01582e7",
+    "table_adapters/final.json": "a36d91a35023948c6d9f0af8fae3d18cc9f7da061a5bcebce937988083521133",
+    "table_adapters/metrics.jsonl": "f00447738d7e420672949fe2f5ebe5dda4f70405fe1b2558c08765cb3dab25f8",
+    "latent/config.json": "71c46cb1962f04e04a9935085097fa5ecbc1e60e12034f9548442b0fbf85348a",
+    "latent/final.json": "bba05cf74a5bc003d31ecb5dd68570fefde58040cf6313e99e1fe8a9b044983a",
+    "latent/metrics.jsonl": "9ee3eb818fb4e83d0d3dd267ce0243e0d3bd3a40fc8420e69e07481f80383404",
+    "adapters/config.json": "e7e96bd759c3026062f4e46459c4d6ce1a09fc78d0f292c415947c2a7c471ad5",
+    "adapters/final.json": "abbf522577bd4f9bd9904687eaac99dd08c8f081ebb1a12e50d91a6b5c4a20d3",
+    "adapters/metrics.jsonl": "472f60ece8058e7ab4ebb7b9880f4c36b33cc574d4c2c43197f1dd1089a5ad5a"
+  },
+  "checkpoints": {
+    "table": {
+      "local_path": "runs/ouro-lookup/table/checkpoint.safetensors",
+      "bytes": 811998318,
+      "sha256": "7952e57e4a231d96fe6e8a0bc2a5e913dc4a6c3368cd6bb6513a3794ba33851a"
+    },
+    "table_adapters": {
+      "local_path": "runs/ouro-lookup/table_adapters/checkpoint.safetensors",
+      "bytes": 830901796,
+      "sha256": "1ce7461054caf391b55845f31be0245fecd53a75876b8f36324d56086945a13e"
+    },
+    "latent": {
+      "local_path": "runs/ouro-lookup/latent/checkpoint.safetensors",
+      "bytes": 830901796,
+      "sha256": "10ec2c3e85821278953c707fdf89f6e516ca72b88cc8cf49e350def9e46d8ed8"
+    },
+    "adapters": {
+      "local_path": "runs/ouro-lookup/adapters/checkpoint.safetensors",
+      "bytes": 18903501,
+      "sha256": "f1db01db80b2d775ee89f4a6a9adba56a9219401c5223cf38b9f0e23f5ae4dd3"
+    }
+  },
+  "validation": {
+    "reading_tests": "31 passed in 12.80s",
+    "ouro_tests": "38 passed in 4.01s",
+    "existing_tests": "58 passed as part of the 93-test batch before the Ouro attention fix",
+    "quick_check": {
+      "facts": 64,
+      "steps": 300,
+      "table_on": 1.0,
+      "table_off": 0.0,
+      "passed": true
+    },
+    "model": {
+      "repository": "ByteDance/Ouro-1.4B",
+      "revision": "574fa66cb8bf5abdc979642d01cf2b79b16bfab1",
+      "verified_sha256": {
+        "config.json": "ce9cc13da41591b8b4deca053d7dfee06424c0228628ee862ea86d725bc163f3",
+        "tokenizer.json": "fcb808fe5e7642f5299be28aea07fc7f6d4f4364c3ac5e408e15a772cbc8fa8d",
+        "model.safetensors": "58872a72616c736595b8b7662079c5b12c5a162ec16eae94f21c348dfa9885af"
+      }
+    },
+    "attention_fix_commit": "c5609bf21cda6709dada0b59282b405966f442ac",
+    "archiver": "Verified complete-run acceptance, incomplete-run rejection, and checkpoint exclusion."
+  },
+  "note": "Checkpoints remain local. No commit or push is performed by this queue."
+}

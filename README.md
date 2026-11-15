@@ -4,13 +4,35 @@ Small language-model experiments.
 
 | Experiment | Where | What it is |
 |---|---|---|
-| Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | The lookup table attached to Ouro-1.4B with the model's own weights frozen. Made-up facts test whether the table is used at all; held-out two-step questions compare a written note handed to a fresh computation with one pass through Ouro's own loops. Built and checked against the original model, not yet run at full size. |
-| Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | Five full-size runs complete. Supervised fact chains use a multi-word scratchpad; transfer from arithmetic and family stories did not beat the facts-only control. A follow-up reading test (known facts also asked through the note) is set up and not yet run at full size. |
+| Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | Four full-size runs complete. Frozen Ouro uses new facts through a learned table and a written handoff, but adapters alone match its accuracy with about 43 times fewer trainable parameters. Internal latent chaining fails to generalize under this recipe. |
+| Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | Five initial runs and eight reading-test runs complete. Teaching facts through the note raises supervised held-out second-step accuracy from 78.6% to 90.5% across two seeds. Useful note writing still does not emerge without intermediate supervision. |
 | Learned core / memory separation | [`core_memory/`](core_memory/README.md) | Natural-text recurrent LM with a dense core, learned expert memory, memory-off training and budgeted gating. Paired evaluations measure memory dependence. |
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. Includes a scratchpad variant that writes intermediate results in token form. MLX, runs on an Apple silicon laptop. |
 | Diffusion LM with a global workspace | `hiPhiLLM.ipynb` | Described below. JAX/Flax notebook. |
 
-Latest results (November 14, 2026): all five multi-token scratchpad runs completed
+Latest results (November 15, 2026): the reading test completed eight runs of
+64,000 steps, followed by four Ouro runs of 8,400 steps. Ouro's table-only
+written-handoff model reaches 99.8% held-out second-hop accuracy; adapters alone
+reach 100%, using 1.57 million trainable parameters versus 67.7 million. The
+latent-loop model recalls the individual facts but reaches only 0.2% on that
+chain split. There is no demonstrated accuracy or capacity advantage for the
+table at this size. The written route uses code to build a fresh second
+question, and takes two model calls; it does not demonstrate autonomous
+decomposition or a compute-matched advantage over latent reasoning.
+See the [Ouro interpretation](ouro_lookup/results/mac-2026-11-14/README.md)
+and [full report](ouro_lookup/results/mac-2026-11-14/report.md).
+
+The reading test raises supervised held-out second-step accuracy from 78.6%
+to 90.5%. Hiding the original subject raises the control to 92.1%, implicating
+interference from the still-visible question. Without intermediate supervision,
+reading training enables use of a supplied correct note (79.5%) but does not
+teach writing it (2.2%). See the
+[reading-test interpretation](phrase_scratchpad/results/reading-test-2026-11-14/README.md)
+and [full report](phrase_scratchpad/results/reading-test-2026-11-14/report.md).
+Both archives include configurations, learning curves, final diagnostics and
+source/checkpoint hashes; checkpoints remain local.
+
+Previous results (November 14, 2026): all five multi-token scratchpad runs completed
 64,000 steps on the Mac. With the intermediate name taught, held-out second-step
 fact accuracy is 78.3%, falling to 7.4% when notes are shuffled. Mixed training,
 with intermediate answers taught only on arithmetic and stories, reaches 24.6%

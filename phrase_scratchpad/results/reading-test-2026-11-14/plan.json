@@ -1,0 +1,90 @@
+{
+  "steps": 64000,
+  "source": "8.0h budget, at most 64000",
+  "estimated_minutes": {
+    "facts_reader": 42.06786679897923,
+    "facts": 41.23416643603705,
+    "facts_unsupervised_reader": 45.30879981952409,
+    "facts_unsupervised": 45.20554431449467
+  },
+  "timings": {
+    "facts_reader": {
+      "sec_per_step": 0.03907901916885748,
+      "eval_sec": 0.422046166844666,
+      "final_eval_sec": 6.13293445808813,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "total": 6369664
+      }
+    },
+    "facts": {
+      "sec_per_step": 0.03831029354594648,
+      "eval_sec": 0.40235091699287295,
+      "final_eval_sec": 6.097162541933358,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "total": 6369664
+      }
+    },
+    "facts_unsupervised_reader": {
+      "sec_per_step": 0.04209685124922544,
+      "eval_sec": 0.4460812075994909,
+      "final_eval_sec": 6.4862609170377254,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "core_mlp": 131968,
+        "total": 6501632
+      }
+    },
+    "facts_unsupervised": {
+      "sec_per_step": 0.042000157705042514,
+      "eval_sec": 0.44487937493249774,
+      "final_eval_sec": 6.527390749659389,
+      "params": {
+        "embedding": 2041600,
+        "attention": 65536,
+        "feed_forward": 4260096,
+        "scratchpad": 1664,
+        "other": 768,
+        "core_mlp": 131968,
+        "total": 6501632
+      }
+    }
+  },
+  "signature": {
+    "preset": "full",
+    "runs": [
+      "facts_reader",
+      "facts",
+      "facts_unsupervised_reader",
+      "facts_unsupervised"
+    ],
+    "extra": [
+      "--checkpoint-minutes",
+      "5",
+      "--log-every",
+      "500"
+    ],
+    "budget": {
+      "hours": 8.0,
+      "steps": null,
+      "max_steps": 64000
+    },
+    "seeds": [
+      0,
+      1
+    ]
+  }
+}

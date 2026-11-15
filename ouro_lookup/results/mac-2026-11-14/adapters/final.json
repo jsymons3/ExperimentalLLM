@@ -1,0 +1,186 @@
+{
+  "variant": "adapters",
+  "about": "control: adapters only, no table, written note",
+  "seed": 0,
+  "preset": "full",
+  "steps": 8400,
+  "facts": {
+    "people": 360,
+    "relations": [
+      "mentor",
+      "manager",
+      "doctor",
+      "lawyer",
+      "landlord",
+      "coach"
+    ],
+    "facts": 2160,
+    "facts_never_in_a_training_chain": 216,
+    "chains": 12960,
+    "training_chains": 7346,
+    "one_step_tokens": 6,
+    "two_step_tokens": 9,
+    "example_one_step": "The mentor of Ernst is",
+    "example_two_step": "The mentor of the mentor of Ernst is",
+    "all_chain_unseen": 3148,
+    "all_chain_held_first": 1160,
+    "all_chain_held_second": 1170,
+    "all_chain_held_both": 136
+  },
+  "params": {
+    "table": 0,
+    "adapters": 1572864,
+    "trained": 1572864,
+    "frozen": 1434652673
+  },
+  "sec_per_step": 0.7258229548113775,
+  "wall_minutes": 106.64360756736714,
+  "peak_memory_gb": 7.01690116,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-i386-64bit-Mach-O",
+  "chain_mode": "note",
+  "accuracy": {
+    "one_hop": 1.0,
+    "one_hop_held": 1.0,
+    "chain_train": 1.0,
+    "chain_unseen": 1.0,
+    "chain_held_first": 1.0,
+    "chain_held_second": 1.0,
+    "chain_held_both": 1.0
+  },
+  "accuracy_original": {
+    "one_hop": 0.0,
+    "one_hop_held": 0.0,
+    "chain_train": 0.0,
+    "chain_unseen": 0.0,
+    "chain_held_first": 0.0,
+    "chain_held_second": 0.0,
+    "chain_held_both": 0.0
+  },
+  "guess_rate": {
+    "one_hop": 0.006,
+    "one_hop_held": 0.009259259259259259,
+    "chain_train": 0.006,
+    "chain_unseen": 0.006,
+    "chain_held_first": 0.012,
+    "chain_held_second": 0.014,
+    "chain_held_both": 0.014705882352941176
+  },
+  "chains": {
+    "chain_train": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.0,
+          0.022,
+          0.16,
+          1.0
+        ],
+        "answer": [
+          0.0,
+          0.002,
+          0.002,
+          0.0
+        ]
+      },
+      "note_right": 1.0,
+      "shuffled_notes": 0.01,
+      "correct_notes": 1.0
+    },
+    "chain_unseen": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.0,
+          0.004,
+          0.112,
+          1.0
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "note_right": 1.0,
+      "shuffled_notes": 0.002,
+      "correct_notes": 1.0
+    },
+    "chain_held_first": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.0,
+          0.012,
+          0.048,
+          1.0
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "note_right": 1.0,
+      "shuffled_notes": 0.008,
+      "correct_notes": 1.0
+    },
+    "chain_held_second": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.0,
+          0.022,
+          0.156,
+          1.0
+        ],
+        "answer": [
+          0.0,
+          0.006,
+          0.0,
+          0.0
+        ]
+      },
+      "note_right": 1.0,
+      "shuffled_notes": 0.01,
+      "correct_notes": 1.0
+    },
+    "chain_held_both": {
+      "both_facts_known": 1.0,
+      "accuracy_when_both_known": 1.0,
+      "two_call": 1.0,
+      "by_loop": {
+        "bridge": [
+          0.0,
+          0.022058823529411766,
+          0.0661764705882353,
+          1.0
+        ],
+        "answer": [
+          0.0,
+          0.0,
+          0.007352941176470588,
+          0.0
+        ]
+      },
+      "note_right": 1.0,
+      "shuffled_notes": 0.007352941176470588,
+      "correct_notes": 1.0
+    }
+  },
+  "ordinary_text_loss": {
+    "original": 2.970211392357236,
+    "with_additions": 3.310845527814064
+  }
+}
