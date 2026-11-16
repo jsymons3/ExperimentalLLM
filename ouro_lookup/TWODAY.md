@@ -123,7 +123,9 @@ committed. Reading it needs `pyarrow`, which the launcher installs.
   many of the same facts in other words.
 - **During training**: held-out loss and known facts after 10%, 25%, 50%,
   75% and all of the steps, to show whether a run had stalled or was still
-  improving when it ended.
+  improving when it ended. The count of known facts swings by ten or more
+  between checks, so the report also gives its mean over the last ten checks:
+  compare runs on that.
 - Distance from the original's predictions, loss on the sixteen sentences,
   the share of table entries used, speed and memory.
 

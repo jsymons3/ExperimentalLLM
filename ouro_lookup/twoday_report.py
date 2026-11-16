@@ -142,12 +142,13 @@ def takeover_section(runs):
 
 
 CURVE_POINTS = (0.1, 0.25, 0.5, 0.75, 1.0)
+LAST_CHECKS = 10
 
 
 def curve_section(runs):
     """Held-out loss and known facts at a few points of each run, to show
     whether a stand-in was still improving when its run ended."""
-    rows = []
+    rows, steady = [], []
     for f in runs:
         curve = f.get("curve") or []
         if len(curve) < 2:
@@ -155,6 +156,11 @@ def curve_section(runs):
         picked = [curve[max(0, round(share * len(curve)) - 1)] for share in CURVE_POINTS]
         rows.append([f["variant"], "held-out loss"] + [num(r["held_out_loss"]) for r in picked])
         rows.append([f["variant"], "known facts right"] + [r["probes_right"] for r in picked])
+        last = [r["probes_right"] for r in curve[-LAST_CHECKS:]]
+        steady.append([
+            f["variant"], len(last), f"{sum(last) / len(last):.1f}", min(last), max(last),
+            f["probes"]["trained"]["right"],
+        ])
     if not rows:
         return []
     return [
@@ -168,6 +174,17 @@ def curve_section(runs):
         "From the periodic evaluations, which use fewer held-out windows than the final "
         "one. A run whose numbers still move between the last two columns had not "
         "finished learning; one that is flat from early on had stalled.",
+        "",
+        table(
+            ["what stands in", "last checks", "known facts right, mean", "lowest", "highest",
+             "at the final evaluation"],
+            steady,
+        ),
+        "",
+        "The count of known facts moves by ten or more from one check to the next, because "
+        "many answers are close calls. Compare runs on the mean of the last checks, and "
+        "treat a difference smaller than the spread between lowest and highest as no "
+        "difference.",
         "",
     ]
 
