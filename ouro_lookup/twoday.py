@@ -189,6 +189,8 @@ def main(argv=None):
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1], help="for the flexibility runs")
     p.add_argument("--only", nargs="+", metavar="RUN", help="run only these, in this order")
     p.add_argument("--pilot-steps", type=int, default=10)
+    p.add_argument("--checkpoint-minutes", type=float, default=5.0,
+                   help="save take-over optimizer checkpoints this often")
     p.add_argument("--skip-check", action="store_true", help="skip the quick check")
     p.add_argument("--check-only", action="store_true", help="run the quick check and stop")
     p.add_argument("--estimate-only", action="store_true", help="time, print the plan, stop")
@@ -198,6 +200,8 @@ def main(argv=None):
     p.add_argument("--takeover-extra", default="", help="more arguments for every take-over run")
     p.add_argument("--flex-extra", default="", help="more arguments for every flexibility run")
     args = p.parse_args(argv)
+    if args.checkpoint_minutes <= 0:
+        p.error("--checkpoint-minutes must be positive")
 
     seeds = list(dict.fromkeys(args.seeds))
     runs = run_list(seeds)
@@ -317,7 +321,7 @@ def main(argv=None):
         cmd = command(run, run_dir, common, extra)
         if run.kind == "takeover":
             cmd += ["--steps", str(steps), "--eval-every", str(max(1, steps // EVALS_PER_RUN))]
-            cmd += ["--checkpoint-minutes", "30"]
+            cmd += ["--checkpoint-minutes", str(args.checkpoint_minutes)]
         if (run_dir / "checkpoint.safetensors").exists():
             cmd.append("--resume")
         code = run_logged(cmd, run_dir / "train.log")

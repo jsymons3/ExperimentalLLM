@@ -53,6 +53,11 @@ guarantee of wall-clock duration. The same
 command resumes after an interruption. Results are in
 `runs/ouro-twoday/report.md`, rewritten after every finished run, and the log
 is `runs/ouro-twoday/sweep.log`. Keep the Mac plugged in with the lid open.
+Take-over runs save weights and optimizer state every five minutes by
+default (`--checkpoint-minutes N` changes this); flexibility runs save at
+phase boundaries. Finished runs are skipped on restart. An abrupt crash
+can lose updates since the last checkpoint, including the start of a run
+if it had not yet saved one.
 
 Useful variations (a different budget or run list needs a fresh `--out`):
 
