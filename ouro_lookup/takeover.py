@@ -100,6 +100,7 @@ class TakeoverConfig:
     lr_final: float = 0.1
     schedule_initial_steps: int = 0  # optional original budget before an extension
     schedule_transition_step: int = 0  # preserve that schedule through this step
+    schedule_steps: int = 0  # keep an existing schedule when stopping earlier
     weight_decay: float = 0.1  # tables and small MLPs
     grad_clip: float = 1.0
     kl_weight: float = 1.0  # next-token distribution after the last loop
@@ -124,6 +125,10 @@ def takeover_learning_rate(cfg, peak):
     The original ramp/decay is followed until the transition; the remaining
     decay is stretched to the new end, without a learning-rate jump.
     """
+    if cfg.schedule_steps:
+        if cfg.schedule_steps < cfg.steps:
+            raise ValueError("schedule_steps must cover all requested training steps")
+        cfg = replace(cfg, steps=cfg.schedule_steps)
     if not cfg.schedule_initial_steps and not cfg.schedule_transition_step:
         return learning_rate(cfg, peak)
     initial, transition = cfg.schedule_initial_steps, cfg.schedule_transition_step
@@ -202,6 +207,7 @@ def parse_args(argv=None):
         ("seq_len", int), ("batch_size", int), ("steps", int), ("lr", float),
         ("adapter_lr", float), ("warmup", int), ("lr_final", float), ("weight_decay", float),
         ("schedule_initial_steps", int), ("schedule_transition_step", int),
+        ("schedule_steps", int),
         ("grad_clip", float), ("kl_weight", float), ("match_weight", float),
         ("local_weight", float), ("eval_every", int), ("log_every", int),
         ("eval_windows", int), ("periodic_windows", int),

@@ -83,6 +83,45 @@ exactly that many training windows. Sparse routing can amplify small
 floating-point differences after recompilation, so this preserves the
 training protocol without promising bitwise identical weights.
 
+To stop earlier while preserving the already-used learning-rate schedule,
+set the smaller `--steps` budget and pass `--schedule-steps OLD_TOTAL` to
+every take-over run as well. This truncates the existing schedule rather
+than restarting or speeding up its decay.
+
+### Short mechanism diagnostics
+
+`python -m ouro_lookup.mechanism` compares answer-token ranks in intact,
+damaged and repaired models, then trains two fresh tables for 1,500 updates.
+It expects a saved reference `config.json` and `checkpoint.safetensors` in
+`runs/ouro-mechanism/reference`; `--reference` and `--out` override these.
+Do not run this concurrently with training: it uses the same GPU.
+
+The primary comparison is the 99 country–capital probes. One arm removes
+all training paragraphs containing a canonical country name or an alias
+listed in `mechanism.py`; the other removes the same number of paragraphs
+randomly within each character-length bin. The validation text stays the
+same, both arms see the same number of token positions, and both start from
+the original frozen model with fresh tables and the same learning-rate
+history. The reference checkpoint is a longer-run diagnostic, not the
+matched short-run control. Other probe categories are secondary outcomes.
+
+`--prepare-only` builds and audits the datasets without training. The saved
+manifest records the aliases, paragraph counts and text hashes; each dataset
+also saves its original paragraph indices. `--rank-run DIR --rank-output
+FILE` independently measures a saved checkpoint. Results include per-probe
+rank intervals (for ties), log probabilities and margins against the best
+alternative. This avoids interpreting every top-one change as a whole fact
+being gained or lost.
+
+Recovery without explicit subject mentions weakens the direct-reteaching
+explanation. It does not exclude unnamed mentions, aliases absent from the
+list, facts conveyed by the teacher on other text, or reconstruction of
+distributed computations. A high answer rank before repair supports residual
+accessibility; a low rank does not establish that the information was erased.
+Topic distribution shifts remain a confound even with random-removal and
+length matching. These are one-seed diagnostics, not definitive localization
+of factual storage. The first-token scoring limitation still applies.
+
 ## Part 1: replacing eight feed-forward modules
 
 ### What is removed
