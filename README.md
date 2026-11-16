@@ -4,13 +4,27 @@ Small language-model experiments.
 
 | Experiment | Where | What it is |
 |---|---|---|
-| Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | Four full-size runs complete. Frozen Ouro uses new facts through a learned table and a written handoff, but adapters alone match its accuracy with about 43 times fewer trainable parameters. Internal latent chaining fails to generalize under this recipe. A [two-day run](ouro_lookup/TWODAY.md) is being checked: replacing eight feed-forward modules with tables or small dense modules, or compensating with adapters, then testing retention and editing. |
+| Lookup table on a pretrained looped model | [`ouro_lookup/`](ouro_lookup/README.md) | Frozen Ouro uses new facts through a learned table and a written handoff, but adapters match its initial accuracy with far fewer parameters. The [partially completed follow-up](ouro_lookup/results/twoday-2026-11-15/README.md) finds no repair advantage over a small dense module, but better retention than adapters in one seed. |
 | Multi-token scratchpad | [`phrase_scratchpad/`](phrase_scratchpad/README.md) | Five initial runs and eight reading-test runs complete. Teaching facts through the note raises supervised held-out second-step accuracy from 78.6% to 90.5% across two seeds. Useful note writing still does not emerge without intermediate supervision. |
 | Learned core / memory separation | [`core_memory/`](core_memory/README.md) | Natural-text recurrent LM with a dense core, learned expert memory, memory-off training and budgeted gating. Paired evaluations measure memory dependence. |
 | Recurrent block + learned lookup | [`recurrent_lookup/`](recurrent_lookup/README.md) | A tiny block applied repeatedly, with a product-key lookup table on every pass, tested on multi-hop facts. Includes a scratchpad variant that writes intermediate results in token form. MLX, runs on an Apple silicon laptop. |
 | Diffusion LM with a global workspace | `hiPhiLLM.ipynb` | Described below. JAX/Flax notebook. |
 
-Latest results (November 15, 2026): the reading test completed eight runs of
+Latest results (November 16, 2026): 12 of 21 runs in the two-day Ouro sweep
+completed before the Metal compiler service became unavailable. After removing
+eight feed-forward modules, a 5.5M-parameter dense replacement recovers more
+first-answer-token probes than the 541M-parameter table (193 versus 174 of 238),
+with lower held-out text loss. In a separate sequential-learning test, the
+table retains 30.9% of earlier facts, versus 14.2% for parameter-matched
+adapters and 7.7% for small adapters. Freezing query/key parameters after the
+first batch reaches 53.5%, but those runs differed before freezing, so the
+whole gain cannot be attributed to that intervention. Editing gives no clear
+advantage over parameter-matched adapters. These are seed-0 results; the
+second seed and wider dense control are unfinished. See the
+[results and limitations](ouro_lookup/results/twoday-2026-11-15/README.md)
+and [saved report](ouro_lookup/results/twoday-2026-11-15/report.md).
+
+Previous results (November 15, 2026): the reading test completed eight runs of
 64,000 steps, followed by four Ouro runs of 8,400 steps. Ouro's table-only
 written-handoff model reaches 99.8% held-out second-hop accuracy; adapters alone
 reach 100%, using 1.57 million trainable parameters versus 67.7 million. The
@@ -56,7 +70,8 @@ on trained chains, so this is a training failure under the tested recipe, not
 proof of an inherent dense-model limitation. See the
 [completed controls and diagnostics](recurrent_lookup/README.md#completed-follow-up-results-november-13)
 and [machine-readable results](recurrent_lookup/results/followup-2026-11-13.json).
-Training on raw Wikipedia has not started.
+At that stage, training on raw Wikipedia had not started; the November 16
+recovery results above use WikiText-103 articles.
 
 ## hiPhiLLM.ipynb
 

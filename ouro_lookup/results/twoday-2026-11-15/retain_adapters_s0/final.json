@@ -1,0 +1,147 @@
+{
+  "kind": "flex",
+  "mode": "retain",
+  "variant": "adapters",
+  "about": "adapters alone, rank 8",
+  "seed": 0,
+  "facts": {
+    "people": 360,
+    "relations": 6,
+    "facts": 2160
+  },
+  "params": {
+    "table": 0,
+    "adapters": 1572864,
+    "trained": 1572864,
+    "frozen": 1434652673
+  },
+  "wall_minutes": 8.031647666666686,
+  "peak_memory_gb": 7.351124938,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "phases": [
+    {
+      "phase": 0,
+      "facts": 360,
+      "steps": 200,
+      "sec_per_step": 0.5323510454200004,
+      "reached_target": true,
+      "recall": [
+        0.9972222222222222,
+        0.008333333333333333,
+        0.002777777777777778,
+        0.002777777777777778,
+        0.005555555555555556,
+        0.0
+      ],
+      "ordinary_text_loss": 3.2502414075843182
+    },
+    {
+      "phase": 1,
+      "facts": 360,
+      "steps": 200,
+      "sec_per_step": 0.5321754125000007,
+      "reached_target": true,
+      "recall": [
+        0.06388888888888888,
+        1.0,
+        0.0,
+        0.0,
+        0.0,
+        0.005555555555555556
+      ],
+      "ordinary_text_loss": 3.42193096540707
+    },
+    {
+      "phase": 2,
+      "facts": 360,
+      "steps": 100,
+      "sec_per_step": 0.5323379462499906,
+      "reached_target": true,
+      "recall": [
+        0.019444444444444445,
+        0.5805555555555556,
+        0.9944444444444445,
+        0.0,
+        0.0,
+        0.008333333333333333
+      ],
+      "ordinary_text_loss": 3.4506806295155448
+    },
+    {
+      "phase": 3,
+      "facts": 360,
+      "steps": 100,
+      "sec_per_step": 0.532864654590012,
+      "reached_target": true,
+      "recall": [
+        0.005555555555555556,
+        0.15833333333333333,
+        0.2722222222222222,
+        0.9888888888888889,
+        0.005555555555555556,
+        0.002777777777777778
+      ],
+      "ordinary_text_loss": 3.615544232455167
+    },
+    {
+      "phase": 4,
+      "facts": 360,
+      "steps": 100,
+      "sec_per_step": 0.5330116325000017,
+      "reached_target": true,
+      "recall": [
+        0.011111111111111112,
+        0.08888888888888889,
+        0.075,
+        0.25277777777777777,
+        0.9805555555555555,
+        0.008333333333333333
+      ],
+      "ordinary_text_loss": 3.536542578693076
+    },
+    {
+      "phase": 5,
+      "facts": 360,
+      "steps": 100,
+      "sec_per_step": 0.5338313845800076,
+      "reached_target": true,
+      "recall": [
+        0.008333333333333333,
+        0.044444444444444446,
+        0.030555555555555555,
+        0.06111111111111111,
+        0.24166666666666667,
+        0.9944444444444445
+      ],
+      "ordinary_text_loss": 3.617123872170717
+    }
+  ],
+  "summary": {
+    "learned": 0.9925925925925926,
+    "kept_at_end": 0.07722222222222222,
+    "first_batch_at_end": 0.008333333333333333,
+    "all_at_end": 0.2300925925925926,
+    "steps": [
+      200,
+      200,
+      100,
+      100,
+      100,
+      100
+    ],
+    "reached_target": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "ordinary_text_loss": {
+    "original": 2.970211392357236,
+    "at_end": 3.617123872170717
+  }
+}

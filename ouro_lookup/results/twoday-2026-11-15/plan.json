@@ -1,0 +1,221 @@
+{
+  "steps": 14800,
+  "source": "Revised to about 38 elapsed hours using sustained large-table timing; common steps for every takeover",
+  "estimated_minutes": {
+    "retain_table_s0": 110.64878723025322,
+    "retain_adapters_s0": 118.81928866086527,
+    "edit_table_s0": 41.753813789691776,
+    "edit_adapters_s0": 44.7522197805345,
+    "retain_adapters_matched_s0": 126.57124693884204,
+    "retain_table_fixed_keys_s0": 110.64878723025322,
+    "edit_adapters_matched_s0": 47.57662279667954,
+    "edit_table_fixed_keys_s0": 41.753813789691776,
+    "retain_table_s1": 110.64878723025322,
+    "retain_adapters_s1": 118.81928866086527,
+    "edit_table_s1": 41.753813789691776,
+    "edit_adapters_s1": 44.7522197805345,
+    "retain_adapters_matched_s1": 126.57124693884204,
+    "retain_table_fixed_keys_s1": 110.64878723025322,
+    "edit_adapters_matched_s1": 47.57662279667954,
+    "edit_table_fixed_keys_s1": 41.753813789691776,
+    "takeover_table": 272.0952612354808,
+    "takeover_dense": 154.468196609593,
+    "takeover_adapters": 169.30013060366426,
+    "takeover_table_small": 227.71664914321155,
+    "takeover_dense_wide": 163.6946368654336
+  },
+  "timings": {
+    "takeover_table": {
+      "sec_per_step": 1.05,
+      "eval_sec": 13.8135442500934,
+      "final_eval_sec": 233.17390412511304,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 365.7142857142857,
+      "peak_memory_gb": 21.78839955,
+      "params": {
+        "table": 541329408,
+        "adapters": 0,
+        "trained": 541329408,
+        "frozen": 1434652673
+      },
+      "timing_source": "Sustained training: 780-step metric 1.043s and 800/850/900-step log 1.044/1.044/1.043s; pilot was 4.514s."
+    },
+    "takeover_dense": {
+      "sec_per_step": 0.6041745208203793,
+      "eval_sec": 4.330913667101413,
+      "final_eval_sec": 153.07234174991027,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 635.5779443969021,
+      "peak_memory_gb": 6.816082862,
+      "params": {
+        "table": 0,
+        "adapters": 0,
+        "dense": 5505024,
+        "trained": 5505024,
+        "frozen": 1434652673
+      }
+    },
+    "takeover_adapters": {
+      "sec_per_step": 0.6630784542299807,
+      "eval_sec": 4.564141834154725,
+      "final_eval_sec": 161.88104024995118,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 579.1169921905113,
+      "peak_memory_gb": 6.936465066,
+      "params": {
+        "table": 0,
+        "adapters": 1572864,
+        "trained": 1572864,
+        "frozen": 1434652673
+      }
+    },
+    "flex_table": {
+      "sec_per_step": 0.5360615792218596,
+      "eval_sec": 7.930318582803011,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 716.3356130790229,
+      "peak_memory_gb": 8.33392621,
+      "params": {
+        "table": 67666176,
+        "adapters": 0,
+        "trained": 67666176,
+        "frozen": 1434652673
+      }
+    },
+    "flex_adapters": {
+      "sec_per_step": 0.5761265333741903,
+      "eval_sec": 8.293804583139718,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 666.5202481667245,
+      "peak_memory_gb": 7.350009606,
+      "params": {
+        "table": 0,
+        "adapters": 1572864,
+        "trained": 1572864,
+        "frozen": 1434652673
+      }
+    },
+    "flex_adapters_matched": {
+      "sec_per_step": 0.6142549583688378,
+      "eval_sec": 8.585204457864165,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 625.147578815997,
+      "peak_memory_gb": 8.521326342,
+      "params": {
+        "table": 0,
+        "adapters": 67633152,
+        "trained": 67633152,
+        "frozen": 1434652673
+      }
+    },
+    "takeover_table_small": {
+      "sec_per_step": 0.8884318917058408,
+      "eval_sec": 7.992758166976273,
+      "final_eval_sec": 194.49662466719747,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 432.2222148764805,
+      "peak_memory_gb": 15.318683326,
+      "params": {
+        "table": 138545152,
+        "adapters": 0,
+        "trained": 138545152,
+        "frozen": 1434652673
+      }
+    },
+    "takeover_dense_wide": {
+      "sec_per_step": 0.6414619583170861,
+      "eval_sec": 4.3613407500088215,
+      "final_eval_sec": 153.5875988327898,
+      "tokens_per_step": 384,
+      "tokens_per_sec": 598.6325377851666,
+      "peak_memory_gb": 7.160703918,
+      "params": {
+        "table": 0,
+        "adapters": 0,
+        "dense": 22020096,
+        "trained": 22020096,
+        "frozen": 1434652673
+      }
+    }
+  },
+  "signature": {
+    "runs": [
+      "takeover_table",
+      "takeover_dense",
+      "takeover_adapters",
+      "retain_table_s0",
+      "retain_adapters_s0",
+      "edit_table_s0",
+      "edit_adapters_s0",
+      "retain_adapters_matched_s0",
+      "retain_table_fixed_keys_s0",
+      "edit_adapters_matched_s0",
+      "edit_table_fixed_keys_s0",
+      "takeover_table_small",
+      "takeover_dense_wide",
+      "retain_table_s1",
+      "retain_adapters_s1",
+      "edit_table_s1",
+      "edit_adapters_s1",
+      "retain_adapters_matched_s1",
+      "retain_table_fixed_keys_s1",
+      "edit_adapters_matched_s1",
+      "edit_table_fixed_keys_s1"
+    ],
+    "extra": [
+      [],
+      [
+        "--batch-size",
+        "4",
+        "--schedule-initial-steps",
+        "7800",
+        "--schedule-transition-step",
+        "925"
+      ],
+      []
+    ],
+    "budget": {
+      "hours": 44.0,
+      "takeover_hours": 4.5,
+      "steps": 14800
+    }
+  },
+  "revision": {
+    "revised_at_chicago": "2026-11-15T16:50:00.154262-06:00",
+    "reason": "User requested revision to about 38 hours after sustained training proved faster than the pilot.",
+    "original_source_commit": "a3afd0f5e180ba09f517acd0a350509af692590d",
+    "source_commit": "580b4919f59b19d7933fa511f5a731573a7c0151",
+    "initial_steps": 7800,
+    "steps": 14800,
+    "tokens_per_takeover": 5683200,
+    "checkpoint_logged_step": 924,
+    "checkpoint_completed_updates": 925,
+    "checkpoint_preserved_at": "runs/ouro-twoday/revisions/original-7800-step-plan/checkpoint.safetensors",
+    "checkpoint_note": "SIGINT arrived after optimizer update 925 but before the Python counter advanced. Resume uses optimizer counter 925 and skips 925 data windows.",
+    "original_table_pilot_seconds_per_step": 4.5139350041747095,
+    "sustained_table_seconds_per_step": 1.044,
+    "other_timings": "Original measured pilots retained; no new concurrent GPU work.",
+    "estimated_experiment_hours": 37.847400581516766,
+    "elapsed_overhead_seconds": 426.27537599962625,
+    "estimated_total_elapsed_hours": 37.96581040818333,
+    "target_total_elapsed_hours": 38,
+    "estimated_completion_chicago": "2026-11-17T06:23:49.842178-06:00",
+    "schedule": "All five takeover runs follow the original 7800-step schedule through update 925, then decay continuously to 10% at the new endpoint. Shared seed and training-window sequence preserved.",
+    "validation": "155 passed in 25.75s across all four packages. Added schedule, optimizer-counter and interrupted-resume checks for table, dense and adapters.",
+    "uncertainty": "Retention phases stop early on target recall; timings and completion are estimates. Original 44-hour supervisor safety cutoff retained.",
+    "original_plan_directory": "runs/ouro-twoday/revisions/original-7800-step-plan"
+  },
+  "revisions": [
+    {
+      "at_chicago": "2026-11-15T19:00:23.706134-06:00",
+      "reason": "User explicitly requested continuing the original plan after learning the shorter version would still take about 32 hours.",
+      "active_source_commit": "580b4919f59b19d7933fa511f5a731573a7c0151",
+      "restored_steps": 14800,
+      "resume_completed_updates": 7559,
+      "diagnostics": "Rank analysis complete; fresh filtered trial checkpointed at update 103 and parked. Random-removal control not started. No diagnostic training queued.",
+      "diagnostic_source_commit": "31b3baab0a0caab701a6c707725518b9032b98d7",
+      "estimated_completion_chicago": "2026-11-17T06:35:22.300254-06:00",
+      "estimated_total_elapsed_hours": 38.158159873611105
+    }
+  ]
+}

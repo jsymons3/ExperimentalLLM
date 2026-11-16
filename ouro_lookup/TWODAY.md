@@ -14,8 +14,10 @@ all:
 2. **Flexibility.** Add facts batch by batch, and change facts, without
    showing the old ones again. Does a table lose less than adapters?
 
-The Mac preflight passed on November 15, 2026. Full-size timings are being
-measured before launch. See "Status" for the review and the small checks.
+The Mac sweep started November 15, 2026 and stopped November 16 after 12 of
+21 runs completed. The Metal compiler service became unavailable; the saved
+results are intact and training remains stopped. See the
+[partial results and interpretation](results/twoday-2026-11-15/README.md).
 
 ## Run it
 
@@ -292,6 +294,26 @@ shorter.
   first token of the expected word.
 
 ## Status
+
+### Partial Mac results, November 16, 2026
+
+Four takeover variants completed 14,800 updates each on the same 5,683,200
+input token positions. The small dense replacement has the lowest held-out
+loss (3.231) and the most originally known probes correct (193/238), ahead of
+the large table (3.277 and 174/238). This supplies no repair-efficiency benefit
+for the table under this recipe.
+
+All eight seed-0 retention and editing runs completed. Earlier-batch recall
+at the end is 30.9% for the table, 14.2% for parameter-matched adapters and
+7.7% for small adapters. The fixed-key variant reaches 53.5%, but its first
+batch required 500 rather than 300 updates before freezing; the comparison
+does not isolate the effect of freezing. Editing does not establish a table
+advantage over parameter-matched adapters.
+
+The wider dense takeover and all eight seed-1 flexibility runs are unfinished.
+The [archive](results/twoday-2026-11-15/README.md) includes the unmodified
+report, configurations, metrics, final diagnostics and provenance. Checkpoints
+remain local. No run was restarted for publication.
 
 ### Mac review and preflight, November 15, 2026
 

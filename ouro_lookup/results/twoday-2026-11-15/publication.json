@@ -1,0 +1,33 @@
+{
+  "published_at_chicago": "2026-11-16T13:59:00.088870-06:00",
+  "training_source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+  "completed_runs": 12,
+  "planned_runs": 21,
+  "complete": false,
+  "interruption": {
+    "finished_at_chicago": "2026-11-16T08:20:47.905553-06:00",
+    "error": "[metal::Device] Unable to load kernel ss_Subtractuint64; Unable to reach MTLCompilerService. The process is unavailable because the compiler is no longer active.",
+    "source": "runs/ouro-twoday/sweep.log:1955-1956",
+    "training_restarted_for_publication": false
+  },
+  "validation": {
+    "tests_command": ".venv/bin/python -m pytest --rootdir=. --confcutdir=. core_memory/tests recurrent_lookup/tests phrase_scratchpad/tests ouro_lookup/tests -q",
+    "tests": "161 passed in 26.84s",
+    "original_archived_file_hashes_verified": 39,
+    "original_archived_files_match_live_outputs": true,
+    "report_regenerated_exactly_from_saved_diagnostics": true,
+    "completed_runs_validated_against_step_or_phase_targets": true,
+    "model_evaluation_rerun": false
+  },
+  "archive_notes": [
+    "Original manifest and its 39 hashed files are unchanged.",
+    "Historical manifest validation predates later source changes; see launch revisions and this publication validation.",
+    "README adds interpretation; status.json preserves the terminal supervisor state.",
+    "No checkpoints, weights, optimizer state or training corpus included."
+  ],
+  "additional_file_sha256": {
+    "README.md": "ee306c4042c40756cfc616309b9292ebe31371c9e48bacc85f335e10d889a013",
+    "status.json": "9364a9adab8ca7474871beb8c3dbffa7ceb14242967bea0066dfd9dc63d44c36",
+    "manifest.json": "2effdea134edbff1bf3860839dbbfa80ee7fb914b1a979b32a3fe6182d2d91b0"
+  }
+}

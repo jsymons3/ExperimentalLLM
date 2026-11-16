@@ -1,0 +1,200 @@
+{
+  "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+  "source_branch": "codex/ouro-twoday-review",
+  "source_checkout": "/Users/jamessymons/Documents/ChatGPT/ExperimentalLLM-twoday-run-20261115",
+  "started_at_chicago": "2026-11-15T16:25:52.924709-06:00",
+  "deadline_chicago": "2026-11-17T12:25:52.924709-06:00",
+  "estimated_completion_chicago": "2026-11-17T07:09:26.512567-06:00",
+  "command": [
+    "/usr/bin/caffeinate",
+    "-is",
+    "/Users/jamessymons/Documents/ChatGPT/ExperimentalLLM/.venv/bin/python",
+    "-u",
+    "-m",
+    "ouro_lookup.twoday",
+    "--out",
+    "runs/ouro-twoday",
+    "--steps",
+    "14800",
+    "--takeover-extra",
+    "--batch-size 4 --schedule-initial-steps 7800 --schedule-transition-step 925",
+    "--checkpoint-minutes",
+    "5"
+  ],
+  "validation": {
+    "reviewed_at_chicago": "2026-11-15T16:15:33.845584-06:00",
+    "claude_commit": "7a7fd8944dd49459a275d6e9fe4a3d3826958224",
+    "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+    "tests": "150 passed in 30.12s across all four experiment packages",
+    "quick_check": {
+      "takeover_loss_first": 3.248349094390869,
+      "takeover_loss_last": 2.552503764629364,
+      "held_out": {
+        "original": 2.994066765967836,
+        "nothing": 4.828265575652427,
+        "trained": 3.942881645040309
+      },
+      "retain_learned": 1.0,
+      "retain_kept": 0.5972222222222222,
+      "passed": true
+    },
+    "source_model": {
+      "repository": "ByteDance/Ouro-1.4B",
+      "revision": "574fa66cb8bf5abdc979642d01cf2b79b16bfab1",
+      "verified_sha256": {
+        "config.json": "ce9cc13da41591b8b4deca053d7dfee06424c0228628ee862ea86d725bc163f3",
+        "tokenizer.json": "fcb808fe5e7642f5299be28aea07fc7f6d4f4364c3ac5e408e15a772cbc8fa8d",
+        "model.safetensors": "58872a72616c736595b8b7662079c5b12c5a162ec16eae94f21c348dfa9885af"
+      }
+    },
+    "text": {
+      "source": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-103-raw-v1",
+      "weights": "data/ouro-1.4b",
+      "train_chars": 120000000,
+      "train_tokens": 25729219,
+      "valid_tokens": 243443,
+      "example": "Senj\u014d no Valkyria 3: Unrecorded Chronicles (Japanese: \u6226\u5834\u306e\u30f4\u30a1\u30eb\u30ad\u30e5\u30ea\u30a23, lit. Valkyria of the Battlefield 3), commonly referred to as Valkyria Chronicles III outside Japan, is a tactical role-playing video "
+    },
+    "text_checksums": {
+      "validation-00000-of-00001.parquet": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c",
+      "train-00000-of-00002.parquet": "74da360f23826045b3e6ac6375411fdb15f003030aa74f2596ed08b857cb9212"
+    },
+    "review_fixes": [
+      "Stop after failed preflight",
+      "Do not reapply a completed editing phase on resume",
+      "Preserve training-window order on takeover resume",
+      "Use verified fused attention for 48/96-token text",
+      "Allow tiny existing recall test to converge without weakening its thresholds"
+    ],
+    "interpretation": [
+      "Frozen-model distillation/recovery, not a replication of Meta pretraining",
+      "MLP removal does not isolate or erase factual storage",
+      "Large table adds more parameters than removed; arithmetic counts do not measure latency",
+      "First-answer-token probes do not establish broad factual or reasoning competence",
+      "Same text windows and steps across takeover variants; dense replacements share all three losses, adapters omit unavailable local targets",
+      "Retain two-seed retention and editing controls to test a separate claimed memory benefit"
+    ],
+    "reference": "https://arxiv.org/html/2412.09764v2",
+    "supervisor_validation": "Accepted complete fixture, rejected missing final results, marked partial archive, excluded checkpoints",
+    "initial_review_source_commit": "a3afd0f5e180ba09f517acd0a350509af692590d",
+    "extension_tests": "155 passed in 25.75s across all four packages. Added schedule, optimizer-counter and interrupted-resume checks for table, dense and adapters.",
+    "crash_recovery": "Both completed checkpoint files have complete tensor payloads and step 14800; no live processes or held locks; 8 existing sweep/resume/schedule checks passed in 6.00s."
+  },
+  "budget_choice": {
+    "default_steps": 3300,
+    "selected_steps": 14800,
+    "tokens_per_takeover": 5683200,
+    "estimated_total_hours": 38.158159873611105,
+    "estimated_flex_hours": 21.417486007227048,
+    "target_planning_hours": 38,
+    "maximum_single_takeover_hours": 10,
+    "supervisor_cutoff_hours": 44,
+    "reason": "Original 14800-step plan restored at user request; diagnostic training parked.",
+    "previous_steps": 7800
+  },
+  "supervisor_sha256": "32a606a5936e48b7b980541e2ab4a98c9b35458f5a89aa62a70c6a15dd375674",
+  "revisions": [
+    {
+      "revised_at_chicago": "2026-11-15T16:50:00.154262-06:00",
+      "reason": "User requested revision to about 38 hours after sustained training proved faster than the pilot.",
+      "original_source_commit": "a3afd0f5e180ba09f517acd0a350509af692590d",
+      "source_commit": "580b4919f59b19d7933fa511f5a731573a7c0151",
+      "initial_steps": 7800,
+      "steps": 14800,
+      "tokens_per_takeover": 5683200,
+      "checkpoint_logged_step": 924,
+      "checkpoint_completed_updates": 925,
+      "checkpoint_preserved_at": "runs/ouro-twoday/revisions/original-7800-step-plan/checkpoint.safetensors",
+      "checkpoint_note": "SIGINT arrived after optimizer update 925 but before the Python counter advanced. Resume uses optimizer counter 925 and skips 925 data windows.",
+      "original_table_pilot_seconds_per_step": 4.5139350041747095,
+      "sustained_table_seconds_per_step": 1.044,
+      "other_timings": "Original measured pilots retained; no new concurrent GPU work.",
+      "estimated_experiment_hours": 37.847400581516766,
+      "elapsed_overhead_seconds": 426.27537599962625,
+      "estimated_total_elapsed_hours": 37.96581040818333,
+      "target_total_elapsed_hours": 38,
+      "estimated_completion_chicago": "2026-11-17T06:23:49.842178-06:00",
+      "schedule": "All five takeover runs follow the original 7800-step schedule through update 925, then decay continuously to 10% at the new endpoint. Shared seed and training-window sequence preserved.",
+      "validation": "155 passed in 25.75s across all four packages. Added schedule, optimizer-counter and interrupted-resume checks for table, dense and adapters.",
+      "uncertainty": "Retention phases stop early on target recall; timings and completion are estimates. Original 44-hour supervisor safety cutoff retained.",
+      "original_plan_directory": "runs/ouro-twoday/revisions/original-7800-step-plan"
+    },
+    {
+      "revised_at_chicago": "2026-11-15T18:57:01.625134-06:00",
+      "source_commit": "31b3baab0a0caab701a6c707725518b9032b98d7",
+      "reason": "User requested short exposure and answer-rank diagnostics, with less time spent on the long recovery curve.",
+      "previous_steps": 14800,
+      "steps_per_takeover": 8000,
+      "tokens_per_takeover": 3072000,
+      "checkpoint_logged_step": 7558,
+      "checkpoint_completed_updates": 7559,
+      "preserved_reference": "runs/ouro-mechanism/reference",
+      "shared_schedule_steps": 14800,
+      "diagnostics": {
+        "out": "runs/ouro-mechanism",
+        "arms": [
+          "filtered",
+          "random_control"
+        ],
+        "steps_per_arm": 1500,
+        "tokens_per_arm": 576000,
+        "primary_probes": "99 country-capital first-answer-token probes",
+        "reference_ranks": "runs/ouro-mechanism/reference.ranks.json",
+        "estimated_minutes": 63.07472084585267,
+        "limitations": [
+          "Named and listed alias mentions only; does not remove all semantic information",
+          "Original teacher can transmit information on other text",
+          "Random removal matches paragraph length bins but not topic distribution",
+          "One seed; low answer rank cannot prove information absent"
+        ]
+      },
+      "main_sweep_estimated_hours": 30.605234356378332,
+      "estimated_total_elapsed_hours": 31.886438718055555,
+      "estimated_completion_chicago": "2026-11-17T00:19:04.104094-06:00",
+      "validation": "161 passed in 25.36s. Rank calculation, ties, lexical filtering, control length matching and schedule preservation tested; baseline rank diagnostic completed on the real model.",
+      "previous_plan_directory": "runs/ouro-twoday/revisions/before-mechanism-diagnostics"
+    },
+    {
+      "at_chicago": "2026-11-15T19:00:23.706134-06:00",
+      "reason": "User explicitly requested continuing the original plan after learning the shorter version would still take about 32 hours.",
+      "active_source_commit": "580b4919f59b19d7933fa511f5a731573a7c0151",
+      "restored_steps": 14800,
+      "resume_completed_updates": 7559,
+      "diagnostics": "Rank analysis complete; fresh filtered trial checkpointed at update 103 and parked. Random-removal control not started. No diagnostic training queued.",
+      "diagnostic_source_commit": "31b3baab0a0caab701a6c707725518b9032b98d7",
+      "estimated_completion_chicago": "2026-11-17T06:35:22.300254-06:00",
+      "estimated_total_elapsed_hours": 38.158159873611105
+    },
+    {
+      "at_chicago": "2026-11-16T00:22:02.187535-06:00",
+      "reason": "Restart after user-reported unplug/closed-lid crash; no training processes survived.",
+      "completed": [
+        "takeover_table",
+        "takeover_dense"
+      ],
+      "restart": "takeover_adapters",
+      "last_logged_adapter_step": 2050,
+      "adapter_checkpoint": null,
+      "note": "Preserved pre-crash metrics; replay adapter run from the same initialization and data order. No completed runs repeated.",
+      "restarted_at_chicago": "2026-11-16T00:23:40.877944-06:00",
+      "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+      "previous_source_commit": "580b4919f59b19d7933fa511f5a731573a7c0151",
+      "checkpoint_minutes": 5,
+      "estimated_remaining_hours": 30.762676284098866,
+      "estimated_completion_chicago": "2026-11-17T07:09:26.512567-06:00",
+      "validation": "Both completed checkpoint files have complete tensor payloads and step 14800; no live processes or held locks; 8 existing sweep/resume/schedule checks passed in 6.00s."
+    }
+  ],
+  "resumed_at_chicago": "2026-11-16T00:23:40.877944-06:00",
+  "parked_diagnostics": {
+    "out": "runs/ouro-mechanism",
+    "filtered_completed_updates": 103,
+    "reference_completed_updates": 7559,
+    "state": "parked_per_user_redirect",
+    "source_commit": "31b3baab0a0caab701a6c707725518b9032b98d7"
+  },
+  "completed_run_source_commits": {
+    "takeover_table": "580b4919f59b19d7933fa511f5a731573a7c0151",
+    "takeover_dense": "580b4919f59b19d7933fa511f5a731573a7c0151"
+  }
+}

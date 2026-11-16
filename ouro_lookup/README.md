@@ -22,10 +22,15 @@ route fails on new chains despite recalling their facts. See the
 [results and interpretation](results/mac-2026-11-14/README.md) and
 [full diagnostic report](results/mac-2026-11-14/report.md).
 
-The next run is [the two-day run](TWODAY.md): removing eight of Ouro's feed-forward modules
-and training a table, a small dense layer or adapters to take over what they
-knew, then adding and changing facts without revision. The Mac preflight
-passes and full-size timing is in progress; the full results are not yet known.
+The follow-up [two-day run](TWODAY.md) completed 12 of 21 runs before a Metal
+compiler service failure on November 16. A small dense replacement repairs
+the removed feed-forward modules better than the large table. In the separate
+sequential-learning test, the table retains more earlier facts than both
+adapter controls, including the parameter-matched one. Editing shows no clear
+advantage over the larger adapters. These are preliminary results from one
+seed; the second seed and wider dense control remain unfinished. See the
+[follow-up results and limitations](results/twoday-2026-11-15/README.md) and
+[saved report](results/twoday-2026-11-15/report.md).
 
 ## Setup
 

@@ -1,0 +1,143 @@
+{
+  "kind": "takeover",
+  "variant": "table_small",
+  "about": "a table of 4,096 entries stands in for each removed MLP",
+  "seed": 0,
+  "steps": 14800,
+  "tokens_trained": 5683200,
+  "params": {
+    "table": 138545152,
+    "adapters": 0,
+    "trained": 138545152,
+    "frozen": 1434652673
+  },
+  "sec_per_step": 0.9047578449383665,
+  "wall_minutes": 227.62046713888336,
+  "peak_memory_gb": 15.318667486,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "removed": {
+    "layers": [
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "numbers": 276824064,
+    "share_of_model": 0.19295545828603491
+  },
+  "cost": {
+    "stand_in": 671744,
+    "removed_mlp": 34603008,
+    "share": 0.019412878787878788
+  },
+  "held_out": {
+    "windows": 1024,
+    "tokens": 97280,
+    "original": 2.8645745001341165,
+    "nothing": 4.944562149047852,
+    "trained": 3.270090211065192,
+    "kl_nothing": 2.16382422298193,
+    "kl_trained": 0.4596940288320184,
+    "gap_recovered": 0.8050393659102474
+  },
+  "probes": {
+    "listed": 269,
+    "nothing": {
+      "known": 238,
+      "right": 38,
+      "by_category": {
+        "capitals": {
+          "known": 99,
+          "right": 0
+        },
+        "currencies": {
+          "known": 4,
+          "right": 1
+        },
+        "authors": {
+          "known": 30,
+          "right": 3
+        },
+        "elements": {
+          "known": 20,
+          "right": 5
+        },
+        "opposites": {
+          "known": 28,
+          "right": 9
+        },
+        "places": {
+          "known": 12,
+          "right": 0
+        },
+        "sequences": {
+          "known": 8,
+          "right": 8
+        },
+        "general": {
+          "known": 37,
+          "right": 12
+        }
+      }
+    },
+    "trained": {
+      "known": 238,
+      "right": 157,
+      "by_category": {
+        "capitals": {
+          "known": 99,
+          "right": 51
+        },
+        "currencies": {
+          "known": 4,
+          "right": 3
+        },
+        "authors": {
+          "known": 30,
+          "right": 22
+        },
+        "elements": {
+          "known": 20,
+          "right": 19
+        },
+        "opposites": {
+          "known": 28,
+          "right": 24
+        },
+        "places": {
+          "known": 12,
+          "right": 2
+        },
+        "sequences": {
+          "known": 8,
+          "right": 8
+        },
+        "general": {
+          "known": 37,
+          "right": 28
+        }
+      }
+    }
+  },
+  "sentences": {
+    "original": 2.970211392357236,
+    "nothing": 3.9960047073694533,
+    "trained": 3.3071683413022526
+  },
+  "table_used": [
+    0.62646484375,
+    0.658935546875,
+    0.708740234375,
+    0.675048828125,
+    0.720703125,
+    0.802978515625,
+    0.74072265625,
+    0.80810546875
+  ]
+}

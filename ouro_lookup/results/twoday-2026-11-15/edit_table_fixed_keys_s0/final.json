@@ -1,0 +1,132 @@
+{
+  "kind": "flex",
+  "mode": "edit",
+  "variant": "table_fixed_keys",
+  "about": "the table, with the part that forms and matches queries frozen after the first phase",
+  "seed": 0,
+  "facts": {
+    "people": 360,
+    "relations": 6,
+    "facts": 2160
+  },
+  "params": {
+    "table": 67666176,
+    "adapters": 0,
+    "trained": 67666176,
+    "frozen": 1434652673
+  },
+  "wall_minutes": 14.082178016666663,
+  "peak_memory_gb": 8.333862662,
+  "mlx_version": "0.32.4",
+  "device": "Device(gpu, 0)",
+  "platform": "macOS-26.4-arm64-arm-64bit-Mach-O",
+  "joint": {
+    "phase": 0,
+    "facts": 2160,
+    "steps": 1200,
+    "sec_per_step": 0.5424352712500012,
+    "reached_target": true,
+    "recall": 0.9824074074074074,
+    "ordinary_text_loss": 3.372857263077905
+  },
+  "edit": {
+    "changed": 100,
+    "untouched": 2060,
+    "before": {
+      "recall": 0.0,
+      "old_answer": 0.97,
+      "untouched": 0.9830097087378641
+    },
+    "checks": [
+      {
+        "step": 20,
+        "loss": 11.3764018535614,
+        "recall": 0.02,
+        "old_answer": 0.63,
+        "untouched": 0.9427184466019417
+      },
+      {
+        "step": 40,
+        "loss": 2.687375840544701,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.933009708737864
+      },
+      {
+        "step": 60,
+        "loss": 0.015441685606492683,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8514563106796117
+      },
+      {
+        "step": 80,
+        "loss": 0.0002913174459536094,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8422330097087378
+      },
+      {
+        "step": 100,
+        "loss": 0.00010686762198020006,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8388349514563107
+      },
+      {
+        "step": 120,
+        "loss": 4.326841644797241e-05,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8378640776699029
+      },
+      {
+        "step": 140,
+        "loss": 1.554386772113503e-05,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8266990291262136
+      },
+      {
+        "step": 160,
+        "loss": 7.396433829853777e-06,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.8106796116504854
+      },
+      {
+        "step": 180,
+        "loss": 4.929509100293217e-06,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.7912621359223301
+      },
+      {
+        "step": 200,
+        "loss": 3.437675502482307e-06,
+        "recall": 1.0,
+        "old_answer": 0.0,
+        "untouched": 0.7868932038834952
+      }
+    ],
+    "when_changed": {
+      "step": 40,
+      "loss": 2.687375840544701,
+      "recall": 1.0,
+      "old_answer": 0.0,
+      "untouched": 0.933009708737864
+    },
+    "at_end": {
+      "step": 200,
+      "loss": 3.437675502482307e-06,
+      "recall": 1.0,
+      "old_answer": 0.0,
+      "untouched": 0.7868932038834952
+    }
+  },
+  "ordinary_text_loss": {
+    "original": 2.970211392357236,
+    "after_joint": 3.372857263077905,
+    "at_end": 3.3341587446468735
+  }
+}

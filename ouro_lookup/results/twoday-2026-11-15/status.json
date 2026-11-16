@@ -1,0 +1,24 @@
+{
+  "state": "failed",
+  "pid": 5163,
+  "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+  "started_at_chicago": "2026-11-16T00:23:57.854332-06:00",
+  "deadline_chicago": "2026-11-17T12:25:52.924709-06:00",
+  "sweep_pid": 5169,
+  "exit_code": 1,
+  "archived_runs": [
+    "takeover_table",
+    "takeover_dense",
+    "takeover_adapters",
+    "retain_table_s0",
+    "retain_adapters_s0",
+    "edit_table_s0",
+    "edit_adapters_s0",
+    "retain_adapters_matched_s0",
+    "retain_table_fixed_keys_s0",
+    "edit_adapters_matched_s0",
+    "edit_table_fixed_keys_s0",
+    "takeover_table_small"
+  ],
+  "finished_at_chicago": "2026-11-16T08:20:47.905553-06:00"
+}

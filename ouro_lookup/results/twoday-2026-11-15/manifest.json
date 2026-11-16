@@ -1,0 +1,196 @@
+{
+  "experiment": "ouro-twoday",
+  "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+  "source_branch": "codex/ouro-twoday-review",
+  "started_at_chicago": "2026-11-15T16:25:52.924709-06:00",
+  "archived_at_chicago": "2026-11-16T08:20:47.905045-06:00",
+  "complete": false,
+  "runs": [
+    "takeover_table",
+    "takeover_dense",
+    "takeover_adapters",
+    "retain_table_s0",
+    "retain_adapters_s0",
+    "edit_table_s0",
+    "edit_adapters_s0",
+    "retain_adapters_matched_s0",
+    "retain_table_fixed_keys_s0",
+    "edit_adapters_matched_s0",
+    "edit_table_fixed_keys_s0",
+    "takeover_table_small"
+  ],
+  "incomplete_runs": [
+    "takeover_dense_wide",
+    "retain_table_s1",
+    "retain_adapters_s1",
+    "edit_table_s1",
+    "edit_adapters_s1",
+    "retain_adapters_matched_s1",
+    "retain_table_fixed_keys_s1",
+    "edit_adapters_matched_s1",
+    "edit_table_fixed_keys_s1"
+  ],
+  "files": {
+    "plan.json": "bf64adab4a0f8a5ad1b5cfdba10d45b920eed14a81d1eaec5b44987f296f1bf4",
+    "launch.json": "a423e97ab3cc2f4afa259b816d7b54f6f5dd85ba2db1e2d64e4b0682b37998de",
+    "report.md": "b6a9ca8d29d65fa4fa86f3dc18dff66df2075f17d94e10b37bde5aed60281e4d",
+    "takeover_table/config.json": "64cc6cecf4fd78cbb4b6353934aaf34b4103bd62e17b727b0419431466ec9151",
+    "takeover_table/final.json": "3bf7f302d91ad536a36f1b1b4767fcb4a821ff78ec5ee6509d27fb4adc59367e",
+    "takeover_table/metrics.jsonl": "0fe554be6a1e7ed4972e250b6334ff0cfebc2fc79d714d7b82676db8098e5093",
+    "takeover_dense/config.json": "10803907f2ce02511039566d4607d604b4183f7c89f2032ff6f202ae7841b1f7",
+    "takeover_dense/final.json": "9342d37e40b04645a31471ac07b0a4c583c68a6be2bde97812b0dfc99b203b3c",
+    "takeover_dense/metrics.jsonl": "adf3e55854d9d8cb392b234f5b529294e95c694fd7d7040c7babe754656c1f29",
+    "takeover_adapters/config.json": "0f0f51d896d09b8364ba2091efe6f75badfb573180f34914ddeec7903c62ba64",
+    "takeover_adapters/final.json": "78a0a16b29b881bf150fb67f6f779d35713fdece1edadbed4f88bdf13033ea87",
+    "takeover_adapters/metrics.jsonl": "19fed4ddfc5534e8703b16d844a9091c659424c46109f0b0d0b9ff899070d16a",
+    "retain_table_s0/config.json": "787001f59c99777b95931274dc306d78951ba02beff6cff90128869527f20cf6",
+    "retain_table_s0/final.json": "4a71ab2dc528448bd5427a4c39ee976bd293f0de8b4f39eb8cf76dcaac860b79",
+    "retain_table_s0/progress.json": "2bb506284d1e9c793c4616fc4ff820e172a7f28fe66ac34d471826525ce1ddf3",
+    "retain_adapters_s0/config.json": "ddde1c520120da95377bb62bdb1f812c794ec827d7ccf5fc15d931a07a492199",
+    "retain_adapters_s0/final.json": "108d15a2aa6d1bb905d88526e56d34f12707465dac4fa8e5e4dd79e33ba3eb75",
+    "retain_adapters_s0/progress.json": "0efc259ea8783f5ea20ac3f52f9caae98b97380318c57bb97fa489a153f4d804",
+    "edit_table_s0/config.json": "6ad2c8f369da4ac51d3b3cef344e5166f857ecb920c6b1e5535f17e1dea303ab",
+    "edit_table_s0/final.json": "cd12d7455b310fe69e7e65467a4bd41658f718bfa25687de457c51fbcbf9ef6a",
+    "edit_table_s0/progress.json": "fde9e724984c331843ab4c3ba841b99176a4b7dc8ae8116eb94c13a7857de821",
+    "edit_adapters_s0/config.json": "30de3c9cda3c1634eec3ef5dcc836ac7cd6a99ea34e777dfa692defda159d2a0",
+    "edit_adapters_s0/final.json": "53adcd353b2c0ff97ab3fb5be4f94ede3dacf218cd1c383931bfed74e362f6e4",
+    "edit_adapters_s0/progress.json": "5418dfd6a3f15467ae50e5c24ebe28d4d7740a813f917cadd64cfa1f93517a36",
+    "retain_adapters_matched_s0/config.json": "b1c3c103d39b4e25261bc4d26cdf6385809a24ddd90f26a490ac639a546921db",
+    "retain_adapters_matched_s0/final.json": "c53e0df15a78d47ed6e55dba7a70429fceee5ce1f6911bfea1c3493b7bce61b5",
+    "retain_adapters_matched_s0/progress.json": "a08551e38578e75aa711d7d937609438d5063e6048f41065f097523a212c69d0",
+    "retain_table_fixed_keys_s0/config.json": "c1324cd55e6eb08a506ffaf0d1d3502a8b9b9cb313243d0c09a17b2279ec3e97",
+    "retain_table_fixed_keys_s0/final.json": "7556432c92e9782c19660e2d8771a95491050a4d207b6f045dc01353e584c400",
+    "retain_table_fixed_keys_s0/progress.json": "fc57e5b02e3aafe6686c8aff00ab81fba26c61c446049646e20a3d27df4cf6ec",
+    "edit_adapters_matched_s0/config.json": "43c064d1599b41a393d98aa373dedfcb9523d5ddf9c511a0c0307c8453820e6a",
+    "edit_adapters_matched_s0/final.json": "eeafe4eb1417b73986b3363ef4bca2020713395609b88facce279c7e48c212c2",
+    "edit_adapters_matched_s0/progress.json": "2bd151765f17801e7305efc97fe8d8986cd3d6c3c1c3ff7674320e4dbe3cb8c4",
+    "edit_table_fixed_keys_s0/config.json": "2d69f34326f9645b3c254fd20d41a3df58eb6f4ebc6256e0f0c0a124ec2c80ae",
+    "edit_table_fixed_keys_s0/final.json": "6d5c3d932f0ea791f5755a64a29c033b1ef2acd48e90f146babfe2e17eac1fe4",
+    "edit_table_fixed_keys_s0/progress.json": "2946c4c07437ec1c7a4d03b0014f61471561863c8513a795ebfc1403ab0d9804",
+    "takeover_table_small/config.json": "619002eb9439c355ba41b3177ef1a9597c27af9e7bb4f68e19eeb217fe227a28",
+    "takeover_table_small/final.json": "95cebdc61f7aa9e1068f886ce79906f0ca6e48a3859a888092da9c903a931975",
+    "takeover_table_small/metrics.jsonl": "071d8dc299175d2814891abf05df7a7aa1e3524b8e6ee0533f9b02899bfb215a"
+  },
+  "checkpoints": {
+    "takeover_table": {
+      "local_path": "runs/ouro-twoday/takeover_table/checkpoint.safetensors",
+      "bytes": 2165339606,
+      "sha256": "dde6cd778006fbee487ef49174d351024a1a34b21ef227c3077de780f47e40f2"
+    },
+    "takeover_dense": {
+      "local_path": "runs/ouro-twoday/takeover_dense/checkpoint.safetensors",
+      "bytes": 22022276,
+      "sha256": "93c05f923c709a0b3f9276dba8babd9f5718cac8cec420014d338d2f11884a3c"
+    },
+    "takeover_adapters": {
+      "local_path": "runs/ouro-twoday/takeover_adapters/checkpoint.safetensors",
+      "bytes": 6300251,
+      "sha256": "cdbb660f808a81b950bf5445abe845cca1b4d9d576fb1a224678d84670e86352"
+    },
+    "retain_table_s0": {
+      "local_path": "runs/ouro-twoday/retain_table_s0/checkpoint.safetensors",
+      "bytes": 270667473,
+      "sha256": "2968168ede2fa00d3f28cfd9c215e1ea60fcdeb4158c75a76dfc6a38848636e1"
+    },
+    "retain_adapters_s0": {
+      "local_path": "runs/ouro-twoday/retain_adapters_s0/checkpoint.safetensors",
+      "bytes": 6300247,
+      "sha256": "d15ae1c78f4c332a80477fc4957296a9dded42f8fddac23bab12203adfcc2c09"
+    },
+    "edit_table_s0": {
+      "local_path": "runs/ouro-twoday/edit_table_s0/checkpoint.safetensors",
+      "bytes": 270667473,
+      "sha256": "393f9bd96a4a2a7dc96685a4fe38bb2d44d81c59eb9f2d7e8ba8148b3e7ac6d1"
+    },
+    "edit_adapters_s0": {
+      "local_path": "runs/ouro-twoday/edit_adapters_s0/checkpoint.safetensors",
+      "bytes": 6300247,
+      "sha256": "ace44f54aecf0feed7b521d391c345242b9969f63145f1b6484f5b55876549f7"
+    },
+    "retain_adapters_matched_s0": {
+      "local_path": "runs/ouro-twoday/retain_adapters_matched_s0/checkpoint.safetensors",
+      "bytes": 270541929,
+      "sha256": "3670f5a6890c8288f4fad7161e8924f4402491dbb8a08e9b5e33eb0d2e455e02"
+    },
+    "retain_table_fixed_keys_s0": {
+      "local_path": "runs/ouro-twoday/retain_table_fixed_keys_s0/checkpoint.safetensors",
+      "bytes": 270667473,
+      "sha256": "ec54425a254c8a3c55756bb2bbfd9439e11f0118f91974aff2ba94aec71b72f1"
+    },
+    "edit_adapters_matched_s0": {
+      "local_path": "runs/ouro-twoday/edit_adapters_matched_s0/checkpoint.safetensors",
+      "bytes": 270541929,
+      "sha256": "be11cc693b2f727cbd04de9b8b4bf0eec1943ee59c9aa49b94934e27f65041b0"
+    },
+    "edit_table_fixed_keys_s0": {
+      "local_path": "runs/ouro-twoday/edit_table_fixed_keys_s0/checkpoint.safetensors",
+      "bytes": 270667473,
+      "sha256": "4d82fe2e66605dca508503b07e58c852c6954dafba34ebc3143932ed8a43a89b"
+    },
+    "takeover_table_small": {
+      "local_path": "runs/ouro-twoday/takeover_table_small/checkpoint.safetensors",
+      "bytes": 554202479,
+      "sha256": "802b222ca97d4c5951a1dd80295b99b0b6163d7dd84d94cb99be946f5ddd2bbd"
+    }
+  },
+  "validation": {
+    "reviewed_at_chicago": "2026-11-15T16:15:33.845584-06:00",
+    "claude_commit": "7a7fd8944dd49459a275d6e9fe4a3d3826958224",
+    "source_commit": "88e9d5775b876489be6c231c493d8d9eb03d7bb9",
+    "tests": "150 passed in 30.12s across all four experiment packages",
+    "quick_check": {
+      "takeover_loss_first": 3.248349094390869,
+      "takeover_loss_last": 2.552503764629364,
+      "held_out": {
+        "original": 2.994066765967836,
+        "nothing": 4.828265575652427,
+        "trained": 3.942881645040309
+      },
+      "retain_learned": 1.0,
+      "retain_kept": 0.5972222222222222,
+      "passed": true
+    },
+    "source_model": {
+      "repository": "ByteDance/Ouro-1.4B",
+      "revision": "574fa66cb8bf5abdc979642d01cf2b79b16bfab1",
+      "verified_sha256": {
+        "config.json": "ce9cc13da41591b8b4deca053d7dfee06424c0228628ee862ea86d725bc163f3",
+        "tokenizer.json": "fcb808fe5e7642f5299be28aea07fc7f6d4f4364c3ac5e408e15a772cbc8fa8d",
+        "model.safetensors": "58872a72616c736595b8b7662079c5b12c5a162ec16eae94f21c348dfa9885af"
+      }
+    },
+    "text": {
+      "source": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-103-raw-v1",
+      "weights": "data/ouro-1.4b",
+      "train_chars": 120000000,
+      "train_tokens": 25729219,
+      "valid_tokens": 243443,
+      "example": "Senj\u014d no Valkyria 3: Unrecorded Chronicles (Japanese: \u6226\u5834\u306e\u30f4\u30a1\u30eb\u30ad\u30e5\u30ea\u30a23, lit. Valkyria of the Battlefield 3), commonly referred to as Valkyria Chronicles III outside Japan, is a tactical role-playing video "
+    },
+    "text_checksums": {
+      "validation-00000-of-00001.parquet": "204929b7ff9d6184953f867dedb860e40aa69c078fc1e54b3baaa8fb28511c4c",
+      "train-00000-of-00002.parquet": "74da360f23826045b3e6ac6375411fdb15f003030aa74f2596ed08b857cb9212"
+    },
+    "review_fixes": [
+      "Stop after failed preflight",
+      "Do not reapply a completed editing phase on resume",
+      "Preserve training-window order on takeover resume",
+      "Use verified fused attention for 48/96-token text",
+      "Allow tiny existing recall test to converge without weakening its thresholds"
+    ],
+    "interpretation": [
+      "Frozen-model distillation/recovery, not a replication of Meta pretraining",
+      "MLP removal does not isolate or erase factual storage",
+      "Large table adds more parameters than removed; arithmetic counts do not measure latency",
+      "First-answer-token probes do not establish broad factual or reasoning competence",
+      "Same text windows and steps across takeover variants; dense replacements share all three losses, adapters omit unavailable local targets",
+      "Retain two-seed retention and editing controls to test a separate claimed memory benefit"
+    ],
+    "reference": "https://arxiv.org/html/2412.09764v2",
+    "supervisor_validation": "Accepted complete fixture, rejected missing final results, marked partial archive, excluded checkpoints",
+    "initial_review_source_commit": "a3afd0f5e180ba09f517acd0a350509af692590d",
+    "extension_tests": "155 passed in 25.75s across all four packages. Added schedule, optimizer-counter and interrupted-resume checks for table, dense and adapters.",
+    "crash_recovery": "Both completed checkpoint files have complete tensor payloads and step 14800; no live processes or held locks; 8 existing sweep/resume/schedule checks passed in 6.00s."
+  },
+  "note": "Only reports and metadata copied. Checkpoints remain local; no automatic Git push."
+}
