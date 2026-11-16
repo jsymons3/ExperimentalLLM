@@ -419,9 +419,10 @@ def test_sweep_and_report(tiny_dir, tiny_text, tmp_path):
     report = (out / "report.md").read_text()
     assert report == build_report(out)
     for heading in ("## Taking over the removed layers", "### Known facts by kind",
-                    "## Adding facts batch by batch", "### Recall of each batch after each phase",
-                    "## Changing facts"):
+                    "### During training", "## Adding facts batch by batch",
+                    "### Recall of each batch after each phase", "## Changing facts"):
         assert heading in report
+    assert "| dense | held-out loss |" in report and "after 50% of the steps" in report
     assert "| nothing put back | 0 | 0% |" in report and "| dense |" in report
     assert "| table | 2 |" in report  # two seeds of the retention run
     # A second start with other settings is refused; the same settings resume.

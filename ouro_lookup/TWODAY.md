@@ -121,8 +121,27 @@ committed. Reading it needs `pyarrow`, which the launcher installs.
 - **Known facts**: the sentence starts the original model completes
   correctly, by kind. Nothing is trained on them, though Wikipedia states
   many of the same facts in other words.
+- **During training**: held-out loss and known facts after 10%, 25%, 50%,
+  75% and all of the steps, to show whether a run had stalled or was still
+  improving when it ended.
 - Distance from the original's predictions, loss on the sixteen sentences,
   the share of table entries used, speed and memory.
+
+### How much the text says about the known facts
+
+Counted in the training text for the 101 capital-city questions:
+
+| | Median per country | Countries with none |
+|---|---|---|
+| Paragraphs that mention the country | 190 | 0 (fewest: 32) |
+| Paragraphs with the country and its capital | 19 | 4 |
+| Paragraphs that state the capital as such | 1 | 45 |
+
+A run sees about 40% of the text, once. So a stand-in meets each country
+often and the stated fact rarely or never. Bringing the capitals back needs
+it to learn what the removed layers did whenever a country appears, not to
+memorise sentences. Whether ten million tokens are enough for that is the
+main thing this part does not know in advance.
 
 ### How to read it
 

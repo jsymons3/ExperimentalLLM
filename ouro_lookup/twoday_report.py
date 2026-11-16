@@ -31,7 +31,11 @@ def load(root):
     finals = []
     for path in sorted(Path(root).glob("*/final.json")):
         if not path.parent.name.startswith("_"):
-            finals.append(json.loads(path.read_text()))
+            final = json.loads(path.read_text())
+            metrics = path.parent / "metrics.jsonl"
+            if metrics.exists():  # the periodic evaluations of a take-over run
+                final["curve"] = [json.loads(line) for line in metrics.read_text().splitlines()]
+            finals.append(final)
     take = {f["variant"]: f for f in finals if f.get("kind") == "takeover"}
     take = [take[v] for v in takeover.VARIANTS if v in take]
 
@@ -109,6 +113,7 @@ def takeover_section(runs):
         "Counts of sentence starts completed correctly. \"Sequences\" are patterns to "
         "continue (\"Monday, Tuesday, Wednesday,\"), which need no stored fact.",
         "",
+        *curve_section(runs),
         "### Side measures",
         "",
         table(
@@ -134,6 +139,37 @@ def takeover_section(runs):
         "",
     ]
     return out
+
+
+CURVE_POINTS = (0.1, 0.25, 0.5, 0.75, 1.0)
+
+
+def curve_section(runs):
+    """Held-out loss and known facts at a few points of each run, to show
+    whether a stand-in was still improving when its run ended."""
+    rows = []
+    for f in runs:
+        curve = f.get("curve") or []
+        if len(curve) < 2:
+            continue
+        picked = [curve[max(0, round(share * len(curve)) - 1)] for share in CURVE_POINTS]
+        rows.append([f["variant"], "held-out loss"] + [num(r["held_out_loss"]) for r in picked])
+        rows.append([f["variant"], "known facts right"] + [r["probes_right"] for r in picked])
+    if not rows:
+        return []
+    return [
+        "### During training",
+        "",
+        table(
+            ["what stands in", "measure"] + [f"after {round(100 * s)}% of the steps" for s in CURVE_POINTS],
+            rows,
+        ),
+        "",
+        "From the periodic evaluations, which use fewer held-out windows than the final "
+        "one. A run whose numbers still move between the last two columns had not "
+        "finished learning; one that is flat from early on had stalled.",
+        "",
+    ]
 
 
 def retain_section(groups):
